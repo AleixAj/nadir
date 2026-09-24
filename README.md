@@ -39,7 +39,7 @@ El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de p
   - alerta de precio con interruptor, atajos (mínimo histórico, −5 %, −10 %) y canales de aviso;
   - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir».
 - **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados.
-- **Tiendas**: estado de cada tienda, última revisión y reintento si falla.
+- **Tiendas**: todas las tiendas donde se venden tus productos, cuántos vende cada una, última revisión y reintento si falla.
 - **Ajustes**: perfil (nombre y foto, que puedes subir desde tu ordenador), cambio de contraseña, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
 - **Instalable como app** (PWA) en el móvil o el escritorio.
 
@@ -101,6 +101,8 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 - Validación de todas las entradas con Zod y consultas parametrizadas con Drizzle.
 - Ruta de revisión automática protegida con clave secreta; claves guardadas como *secrets* de Cloudflare.
 - Cabeceras de seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Contraseñas cifradas por Better Auth y protección para que nadie pueda apropiarse de una cuenta de Google registrando antes su email.
+- Fotos de perfil recortadas en el navegador y comprobadas en el servidor (tipo real del archivo y tamaño máximo).
 - Borrado de cuenta con sus datos en cascada, y páginas de privacidad y condiciones.
 
 ### Rendimiento y calidad
@@ -119,10 +121,11 @@ src/
 │   ├── entrar/               # Acceso con Google, email o demo
 │   ├── app/                  # La aplicación (panel, productos, ficha, alertas, tiendas, ajustes)
 │   ├── api/auth/             # Better Auth
+│   ├── api/avatar/           # Fotos de perfil subidas
 │   ├── api/cron/check/       # Revisión automática de precios
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # UI base, shell de la app, modal de añadir, gráfica
+├── components/               # UI base, shell de la app, modales de añadir producto y de listas, gráfica
 ├── db/                       # Esquema y conexión (Drizzle + Neon)
 ├── server/                   # Server Actions, carga de la cuenta, revisiones, simulación, lector de páginas
 └── lib/                      # Lógica pura y tests (gráfica, históricos, catálogo, formato…)
@@ -162,7 +165,7 @@ npm run deploy        # despliega en Cloudflare Workers
 - [x] **Cuentas reales**: Google o email, perfil con foto, base de datos, datos por usuario, borrado de cuenta.
 - [x] **Motor de precios**: lectura de páginas, catálogo de prueba, histórico, revisión programada y avisos en la app.
 - [x] **Despliegue** en [nadir.aleixaj.com](https://nadir.aleixaj.com) con despliegue continuo.
-- [ ] **Avisos por email** con React Email + Resend y, después, Telegram.
+- [ ] **Emails** con React Email + Resend: avisos de precio, verificación del email y recuperar la contraseña. Después, Telegram.
 - [ ] **Datos de producción**: catálogos de afiliados de las tiendas en lugar del catálogo de prueba.
 - [ ] **Tests de extremo a extremo** con Playwright y capturas en este README.
 

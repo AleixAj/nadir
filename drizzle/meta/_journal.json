@@ -36,6 +36,13 @@
       "when": 1790288822779,
       "tag": "0004_user_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790290677908,
+      "tag": "0005_drop_product_list",
+      "breakpoints": true
     }
   ]
 }

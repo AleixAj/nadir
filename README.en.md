@@ -39,7 +39,7 @@ The name comes from *nadir*, the lowest point of a curve. It is a portfolio proj
   - price alert with a toggle, shortcuts (all-time low, −5 %, −10 %) and notification channels;
   - period summary, “Check price now” and “Stop tracking”.
 - **Alerts**: active alerts with progress towards the target, plus a history of generated notifications.
-- **Stores**: status of each store, last check and retry on failure.
+- **Stores**: every store that sells your products, how many each one sells, last check and retry on failure.
 - **Settings**: profile (name and a photo you can upload from your computer), password change, channels, check frequency, theme, sign out and delete the account with all its data.
 - **Installable as an app** (PWA) on mobile or desktop.
 
@@ -101,6 +101,8 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 - All input validated with Zod and parameterized queries through Drizzle.
 - The automatic check route is protected with a secret; keys are stored as Cloudflare secrets.
 - Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Passwords hashed by Better Auth, and protection so nobody can take over a Google account by registering its email first.
+- Profile photos cropped in the browser and checked on the server (real file type and maximum size).
 - Account deletion cascades to all its data, plus privacy and terms pages.
 
 ### Performance and quality
@@ -119,10 +121,11 @@ src/
 │   ├── entrar/               # Sign in with Google, email or demo
 │   ├── app/                  # The app (dashboard, products, product page, alerts, stores, settings)
 │   ├── api/auth/             # Better Auth
+│   ├── api/avatar/           # Uploaded profile photos
 │   ├── api/cron/check/       # Automatic price checks
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # Base UI, app shell, add-product dialog, chart
+├── components/               # Base UI, app shell, add-product and list dialogs, chart
 ├── db/                       # Schema and connection (Drizzle + Neon)
 ├── server/                   # Server Actions, account loader, checks, simulation, page reader
 └── lib/                      # Pure logic and tests (chart, history, catalog, formatting…)
@@ -162,7 +165,7 @@ npm run deploy        # deploy to Cloudflare Workers
 - [x] **Real accounts**: Google or email, profile with photo, database, per-user data, account deletion.
 - [x] **Price engine**: page parsing, test catalog, history, scheduled checks and in-app alerts.
 - [x] **Deployment** at [nadir.aleixaj.com](https://nadir.aleixaj.com) with continuous deployment.
-- [ ] **Email alerts** with React Email + Resend, then Telegram.
+- [ ] **Emails** with React Email + Resend: price alerts, email verification and password reset. Then Telegram.
 - [ ] **Production data**: store affiliate catalogs instead of the test catalog.
 - [ ] **End-to-end tests** with Playwright and screenshots in this README.
 

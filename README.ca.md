@@ -39,7 +39,7 @@ El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfoli
   - alerta de preu amb interruptor, dreceres (mínim històric, −5 %, −10 %) i canals d'avís;
   - resum del període, «Revisar el preu ara» i «Deixar de seguir».
 - **Alertes** actives amb el progrés cap a l'objectiu, i historial d'avisos generats.
-- **Botigues**: estat de cada botiga, última revisió i reintent si falla.
+- **Botigues**: totes les botigues on es venen els teus productes, quants en ven cadascuna, última revisió i reintent si falla.
 - **Configuració**: perfil (nom i foto, que pots pujar des del teu ordinador), canvi de contrasenya, canals, freqüència de revisió, tema, tancar la sessió i eliminar el compte amb totes les seves dades.
 - **Instal·lable com a aplicació** (PWA) al mòbil o a l'escriptori.
 
@@ -101,6 +101,8 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 - Validació de totes les entrades amb Zod i consultes parametritzades amb Drizzle.
 - Ruta de revisió automàtica protegida amb una clau secreta; claus desades com a *secrets* de Cloudflare.
 - Capçaleres de seguretat (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Contrasenyes xifrades per Better Auth i protecció perquè ningú es pugui apropiar d'un compte de Google registrant-ne abans el correu.
+- Fotos de perfil retallades al navegador i comprovades al servidor (tipus real del fitxer i mida màxima).
 - Esborrat del compte amb les seves dades en cascada, i pàgines de privacitat i condicions.
 
 ### Rendiment i qualitat
@@ -119,10 +121,11 @@ src/
 │   ├── entrar/               # Accés amb Google, correu o demo
 │   ├── app/                  # L'aplicació (tauler, productes, fitxa, alertes, botigues, configuració)
 │   ├── api/auth/             # Better Auth
+│   ├── api/avatar/           # Fotos de perfil pujades
 │   ├── api/cron/check/       # Revisió automàtica de preus
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # UI base, shell de l'aplicació, diàleg d'afegir, gràfica
+├── components/               # UI base, shell de l'aplicació, diàlegs d'afegir producte i de llistes, gràfica
 ├── db/                       # Esquema i connexió (Drizzle + Neon)
 ├── server/                   # Server Actions, càrrega del compte, revisions, simulació, lector de pàgines
 └── lib/                      # Lògica pura i tests (gràfica, historials, catàleg, format…)
@@ -162,7 +165,7 @@ npm run deploy        # desplega a Cloudflare Workers
 - [x] **Comptes reals**: Google o correu, perfil amb foto, base de dades, dades per usuari, esborrat del compte.
 - [x] **Motor de preus**: lectura de pàgines, catàleg de prova, historial, revisió programada i avisos a l'aplicació.
 - [x] **Desplegament** a [nadir.aleixaj.com](https://nadir.aleixaj.com) amb desplegament continu.
-- [ ] **Avisos per correu** amb React Email + Resend i, després, Telegram.
+- [ ] **Correus** amb React Email + Resend: avisos de preu, verificació del correu i recuperar la contrasenya. Després, Telegram.
 - [ ] **Dades de producció**: catàlegs d'afiliats de les botigues en lloc del catàleg de prova.
 - [ ] **Tests d'extrem a extrem** amb Playwright i captures en aquest README.
 
