@@ -21,93 +21,92 @@
 
 **Compra en el punto más bajo.** Nadir es un monitor de precios: sigue los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del precio que tú eliges.
 
-El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de portfolio construido como un producto SaaS real: diseño propio con sistema de tokens, modo claro y oscuro, animaciones cuidadas, lógica de dominio aislada y probada, y una demo lista para usar sin registrarse.
+El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de portfolio construido como un producto SaaS real: diseño propio con sistema de tokens, cuentas con Google, base de datos, tareas programadas, lógica de dominio probada y desplegado en producción.
 
-> **Demo:** pulsa **«Entrar como demo»** y entrarás en una cuenta que ya sigue 12 productos, con alertas e histórico de un año.
-> El despliegue público en Cloudflare está en camino.
+> **Web:** [nadir.aleixaj.com](https://nadir.aleixaj.com)
+> **Demo sin registro:** pulsa «Entrar como demo» y entrarás en una cuenta que ya sigue 12 productos, con alertas e histórico de un año.
+> **Cuenta real:** entra con Google, busca cualquier producto del catálogo y empieza a seguir su precio.
 
 ## Qué puedes hacer
 
-- **Panel** con el ahorro del mes, alertas activas, últimas bajadas y productos cerca de su precio objetivo.
+- **Panel** con las bajadas de la semana, alertas activas, últimas bajadas y productos cerca de su precio objetivo.
+- **Buscar y añadir productos por nombre**, con sugerencias y fotos mientras escribes y navegación con el teclado. También se puede pegar el enlace de una tienda.
 - **Mis productos**: tabla con minigráfica de 7 días, mínimo histórico, mejor tienda y estado de la alerta. Filtros por lista, búsqueda y cuatro formas de ordenar.
 - **Ficha de producto**, la pantalla principal:
   - gráfica del histórico dibujada en SVG, con periodos de 7 días, 1 mes, 3 meses y 1 año, tooltip, línea del precio objetivo y el punto *nadir* marcado;
-  - comparativa de tiendas ordenada por precio final con envío, con la opción «Mejor» destacada;
+  - comparativa de tiendas ordenada por precio final, con la opción «Mejor» destacada;
   - alerta de precio con interruptor, atajos (mínimo histórico, −5 %, −10 %) y canales de aviso;
-  - resumen del periodo: máximo, media, mínimo y variación.
-- **Añadir producto** pegando la URL de una tienda compatible o buscándolo por nombre, con vista previa antes de confirmar.
-- **Alertas** activas con su progreso hacia el objetivo, y un historial de avisos enviados.
-- **Tiendas**: estado de cada tienda, última revisión y tiempo de respuesta, con un ejemplo de tienda caída y el botón de reintentar.
-- **Ajustes**: perfil, canales, frecuencia de revisión, tema y un botón para restablecer la demo.
-- **Email de alerta**: vista previa del correo que llega cuando se cumple un objetivo.
+  - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir».
+- **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados.
+- **Tiendas**: estado de cada tienda, última revisión y reintento si falla.
+- **Ajustes**: cuenta de Google, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
+- **Instalable como app** (PWA) en el móvil o el escritorio.
 
-Detalles de producto:
+## Catálogo de prueba
 
-- Diseño responsive: en móvil la barra lateral pasa a ser una barra inferior, las tablas se convierten en listas y los modales se abren desde abajo.
-- Estados de carga (esqueletos), vacío y error en todas las pantallas. Se pueden forzar con `?estado=vacio`, `?estado=cargando` o `?estado=error`.
-- Tema claro y oscuro sin parpadeo al cargar: un script en `<head>` aplica el tema antes de pintar la página.
-- Los cambios de la demo (alertas, productos añadidos, ajustes) se guardan en el navegador.
-- Accesibilidad: roles ARIA en tablas, pestañas, interruptores y diálogos; foco visible; `Escape` cierra el modal; se respeta `prefers-reduced-motion`.
+Las grandes tiendas (Amazon, PcComponentes, MediaMarkt…) no permiten leer sus páginas de forma automática; en producción los datos llegarían de sus **programas de afiliados** (catálogos oficiales con precios diarios). Para simularlo de forma honesta:
+
+1. `scripts/seed-catalog.ts` hace **una sola vez** 58 búsquedas en Google Shopping España a través de la API de SerpApi.
+2. Se quedan los productos de **tiendas conocidas y tiendas oficiales de marca**, se descartan accesorios y precios atípicos (cuotas mensuales), y se agrupan las ofertas del mismo producto en distintas tiendas.
+3. Las fotos se descargan, se recortan y se convierten a WebP (`public/catalog/`), y todo se guarda en Postgres.
+
+El resultado son **más de 600 productos reales**, sobre todo tecnología. Al seguir uno, su precio parte del real y **evoluciona de forma simulada** en cada revisión automática, con cambios pequeños y ofertas de vez en cuando. La web lo indica siempre con el aviso «Entorno de prueba» y la etiqueta «Precio simulado».
 
 ## Stack técnico
 
 | Capa | Elección | Motivo |
 |---|---|---|
-| Framework | Next.js 16 (App Router) | Rutas por carpetas, layouts anidados y páginas prerenderizadas. |
+| Framework | Next.js 16 (App Router) | Server Components, Server Actions, layouts anidados y rutas prerenderizadas. |
 | UI | React 19 | Componentes, hooks y la versión actual del ecosistema. |
-| Lenguaje | TypeScript 5 (estricto) | Modelos de dominio tipados (`Product`, `ShopOffer`, `Chart`...). |
+| Lenguaje | TypeScript 5 (estricto) | Modelos de dominio tipados de punta a punta, del esquema de la base de datos a la interfaz. |
 | Estilos | Tailwind CSS 4 + tokens CSS | Los colores del diseño son variables CSS; Tailwind las expone como utilidades (`bg-surface`, `text-brand-text`). |
-| Estado | Zustand 5 + `persist` | Estado global sin *boilerplate* y guardado en `localStorage`. |
-| Animación | Motion 13 + CSS | Motion para lo interactivo (modal, toasts, indicadores deslizantes); CSS para lo predecible (entradas, dibujo de la gráfica). |
-| Gráficas | SVG propio | Control total del diseño (línea escalonada, punto *nadir*, objetivo) sin depender de una librería. |
-| Iconos | Tabler Icons | Importados uno a uno, así solo se incluyen los que se usan. |
-| Base de datos | Neon (Postgres) + Drizzle ORM | Postgres sin servidor que se apaga sin uso; consultas tipadas y migraciones versionadas. |
-| Login | Better Auth + Google | Sesiones en nuestra propia base de datos, sin contraseñas. |
-| Servidor | Server Actions + Zod | Cada acción comprueba la sesión y valida los datos antes de tocar la base de datos. |
-| Tests | Vitest | Tests unitarios de la lógica de precios, la lectura de páginas y la seguridad de las URLs. |
-| Despliegue | Cloudflare Workers (OpenNext) | Despliegue continuo desde GitHub y un Cron Trigger que revisa los precios cada hora. |
+| Estado | Zustand 5 | Un único estado con dos modos: demo (en `localStorage`) y cuenta real (sincronizado con el servidor). |
+| Animación | Motion 13 + CSS | Motion para lo interactivo (modal, toasts, indicadores); CSS para lo predecible (entradas, brillos, dibujo de la gráfica). |
+| Base de datos | Neon (Postgres) + Drizzle ORM | Postgres sin servidor, consultas tipadas y migraciones versionadas. |
+| Login | Better Auth + Google | Sesiones guardadas en nuestra base de datos, sin contraseñas. |
+| Servidor | Server Actions + Zod | Cada acción comprueba la sesión, la propiedad del dato y valida la entrada. |
+| Tests | Vitest | Tests unitarios de la lógica de precios, gráfica, lectura de páginas, seguridad de URLs y catálogo. |
+| Despliegue | Cloudflare Workers (OpenNext) | Despliegue continuo desde GitHub y un Cron Trigger que revisa los precios. |
 
 ## Arquitectura
 
-La lógica no depende de React: son funciones puras en `src/lib/` que se pueden probar por separado. Los componentes solo leen el estado y pintan.
-
 ```txt
-src/lib/demo-data.ts     Productos, tiendas y generador de históricos
-        |
-src/lib/store.ts         Zustand: estado de la demo + persistencia
-        |
-src/lib/insights.ts      Ordenar, progreso al objetivo, estado de alerta
-src/lib/chart.ts         Geometría de la gráfica: escalas, ejes, nadir
-src/lib/format.ts        Formato español de precios, porcentajes y fechas
-        |
-src/app/**               Páginas: leen del store y pintan
+                 ┌──────────────────────── Cloudflare Worker ────────────────────────┐
+ Navegador ────► │ Next.js (OpenNext)                                                 │
+                 │  ├─ Páginas y layouts (Server Components)                          │
+                 │  ├─ Server Actions  ── Zod ──► Drizzle ──► Neon Postgres (UE)     │
+                 │  ├─ /api/auth/*  Better Auth + Google                              │
+                 │  └─ /api/cron/check  ◄── Cron Trigger (con clave)                  │
+                 └────────────────────────────────────────────────────────────────────┘
 ```
 
-### Históricos simulados
+- **La lógica no depende de React.** Son funciones puras en `src/lib/` con sus tests: geometría de la gráfica, históricos, lectura de páginas de producto, catálogo y simulación de precios.
+- **Una misma interfaz para la demo y las cuentas reales.** El servidor convierte las filas de la base de datos al mismo modelo `Product` que usa la demo, así que las pantallas no distinguen de dónde vienen los datos.
+- **El servidor es la fuente de verdad.** Cada acción devuelve el estado actualizado de la cuenta y la interfaz lo sustituye; los cambios pequeños (activar una alerta) se aplican al instante y se deshacen si el servidor falla.
+- **Importes en céntimos** (enteros) para evitar errores de coma flotante.
 
-`makeSeries()` genera un año de precios diarios de forma **determinista**: con la misma semilla sale siempre la misma serie, así que los datos no cambian entre visitas. Hay cuatro formas de curva para que cada gráfica cuente algo distinto:
+### Lectura de páginas de producto
 
-- `launch`: sale caro y baja por escalones (móviles tras su lanzamiento).
-- `volatile`: cambia de precio a menudo (típico de marketplaces).
-- `stable`: casi no se mueve.
-- `random`: cambios de vez en cuando.
+Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()` saca nombre, foto y precio de los **datos estructurados de schema.org (JSON-LD)** o de las etiquetas **Open Graph**, las mismas que usan buscadores y redes sociales. Antes de descargar nada, `checkPublicUrl()` bloquea direcciones internas, IPs privadas y puertos raros (protección contra **SSRF**), y las redirecciones se siguen a mano validando cada salto.
 
-Además incluye bajadas en Black Friday y Prime Day, y garantiza que el mínimo histórico, el precio de hace 7 días y el precio actual coinciden con los datos del producto. Los tests comprueban estas reglas.
+### Gráfica e históricos
 
-### Gráfica
+`buildChart()` calcula escalas con pasos «bonitos», la línea escalonada (el precio se mantiene hasta que cambia), el punto más bajo del periodo y si es el mínimo de todo el histórico. `makeSeries()` genera históricos deterministas con cuatro formas de curva (lanzamiento, volátil, estable, aleatoria) y ofertas de Black Friday y Prime Day.
 
-`buildChart()` calcula todo lo que hay que dibujar: pasos de eje «bonitos» (1, 2, 2,5, 5 × 10ⁿ), la línea escalonada (el precio se mantiene hasta que cambia), el área, las marcas de los ejes, el punto más bajo del periodo y si ese punto es el mínimo de todo el histórico. El componente `PriceChart` solo pinta el SVG, mide su ancho con `ResizeObserver` y gestiona el tooltip.
+### Seguridad
 
-### Animaciones
+- Sesiones de Better Auth en cookies firmadas; cada Server Action comprueba la sesión y que el producto sea del usuario.
+- Validación de todas las entradas con Zod y consultas parametrizadas con Drizzle.
+- Ruta de revisión automática protegida con clave secreta; claves guardadas como *secrets* de Cloudflare.
+- Cabeceras de seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Borrado de cuenta con sus datos en cascada, y páginas de privacidad y condiciones.
 
-Siguen unas reglas sencillas:
+### Rendimiento y calidad
 
-- Solo se animan `transform` y `opacity`.
-- Se usan curvas `ease-out` fuertes y duraciones de menos de 300 ms en la interfaz.
-- Todo lo que se pulsa responde (`scale(0.97)`).
-- Con `prefers-reduced-motion` se quita el movimiento.
-
-Hay entradas escalonadas en cada pantalla, una línea de la gráfica que se dibuja al cambiar de periodo, indicadores que se deslizan en los controles segmentados y la navegación, y un modal que en móvil se abre como una hoja desde abajo.
+- Páginas públicas prerenderizadas; la app se genera en el servidor solo cuando depende de la sesión.
+- Iconos importados uno a uno, fuente con `next/font`, imágenes en WebP de pocos KB.
+- Animaciones solo con `transform` y `opacity`, efectos de *hover* solo con ratón y todo desactivado con `prefers-reduced-motion`.
+- Metadatos para buscadores y redes sociales (Open Graph), `robots.txt`, `sitemap.xml` y manifiesto PWA.
 
 ## Estructura del proyecto
 
@@ -115,26 +114,19 @@ Hay entradas escalonadas en cada pantalla, una línea de la gráfica que se dibu
 src/
 ├── app/
 │   ├── page.tsx              # Landing
-│   ├── entrar/               # Acceso (demo; Google, próximamente)
-│   ├── email/alerta/         # Vista previa del email de alerta
-│   └── app/                  # La aplicación
-│       ├── layout.tsx        # Shell: barra lateral, cabeceras, modal, toasts
-│       ├── page.tsx          # Panel
-│       ├── productos/        # Mis productos + [id] (ficha)
-│       ├── alertas/
-│       ├── tiendas/
-│       └── ajustes/
-├── components/
-│   ├── ui.tsx                # Botones, Switch, Segmented, badges, esqueletos...
-│   ├── theme.tsx             # Tema claro/oscuro sin parpadeo
-│   └── app/                  # Shell, modal de añadir producto, gráfica
-└── lib/
-    ├── demo-data.ts          # Datos de la demo y generador de históricos
-    ├── store.ts              # Estado global (Zustand)
-    ├── chart.ts              # Geometría de la gráfica
-    ├── insights.ts           # Cálculos derivados
-    ├── format.ts             # Formato es-ES
-    └── __tests__/            # Tests unitarios
+│   ├── entrar/               # Acceso con Google o demo
+│   ├── app/                  # La aplicación (panel, productos, ficha, alertas, tiendas, ajustes)
+│   ├── api/auth/             # Better Auth
+│   ├── api/cron/check/       # Revisión automática de precios
+│   ├── privacidad/, condiciones/, email/alerta/
+│   └── manifest.ts, robots.ts, sitemap.ts
+├── components/               # UI base, shell de la app, modal de añadir, gráfica
+├── db/                       # Esquema y conexión (Drizzle + Neon)
+├── server/                   # Server Actions, carga de la cuenta, revisiones, simulación, lector de páginas
+└── lib/                      # Lógica pura y tests (gráfica, históricos, catálogo, formato…)
+scripts/seed-catalog.ts       # Carga del catálogo de prueba
+drizzle/                      # Migraciones SQL
+worker.ts, wrangler.jsonc     # Worker de Cloudflare y Cron Trigger
 ```
 
 ## Arrancar en local
@@ -146,35 +138,35 @@ npm install
 npm run dev
 ```
 
-La app queda en `http://localhost:3000`. La demo funciona sin configurar nada; para las cuentas reales, copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`.
+La demo funciona sin configurar nada. Para las cuentas reales: copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`. Para cargar el catálogo de prueba hace falta además una clave de SerpApi y `npm run catalog:seed`.
 
 ## Scripts
 
 ```bash
-npm run dev        # servidor de desarrollo
-npm run build      # build de producción
-npm run start      # sirve el build
-npm run lint       # ESLint
-npm run typecheck  # comprueba TypeScript sin generar archivos
-npm test           # tests unitarios con Vitest
-npm run db:migrate # aplica las migraciones a la base de datos
-npm run preview    # prueba la app en el entorno de Cloudflare
-npm run deploy     # despliega en Cloudflare Workers
+npm run dev           # servidor de desarrollo
+npm run build         # build de producción
+npm run lint          # ESLint
+npm run typecheck     # comprueba TypeScript
+npm test              # tests unitarios con Vitest
+npm run db:migrate    # aplica las migraciones a la base de datos
+npm run catalog:seed  # carga el catálogo de prueba (usa caché: no repite búsquedas)
+npm run preview       # prueba la app en el entorno de Cloudflare
+npm run deploy        # despliega en Cloudflare Workers
 ```
 
 ## Hoja de ruta
 
-- [x] **Fase 0 · Base**: Next.js, TypeScript, Tailwind, sistema de diseño y tema claro/oscuro.
-- [x] **Fase 1 · MVP con demo**: todas las pantallas del diseño, demo sin registro, estados de carga, vacío y error, y tests de la lógica.
-- [x] **Cuentas de usuario**: inicio de sesión con Google, base de datos y datos reales por usuario.
-- [x] **Fase 2 · Motor de precios**: lectura de la página del producto (JSON-LD / Open Graph), histórico real y revisión programada.
-- [ ] **Despliegue** en `nadir.aleixaj.com` (Cloudflare Workers).
-- [ ] **Fase 3 · Avisos**: emails con React Email + Resend y, después, Telegram.
-- [ ] **Fase 4 · Pulido**: tests de extremo a extremo con Playwright, PWA instalable y capturas en este README.
+- [x] **Base y MVP**: diseño, todas las pantallas, demo sin registro, estados de carga, vacío y error.
+- [x] **Cuentas reales**: Google, base de datos, datos por usuario, borrado de cuenta.
+- [x] **Motor de precios**: lectura de páginas, catálogo de prueba, histórico, revisión programada y avisos en la app.
+- [x] **Despliegue** en [nadir.aleixaj.com](https://nadir.aleixaj.com) con despliegue continuo.
+- [ ] **Avisos por email** con React Email + Resend y, después, Telegram.
+- [ ] **Datos de producción**: catálogos de afiliados de las tiendas en lugar del catálogo de prueba.
+- [ ] **Tests de extremo a extremo** con Playwright y capturas en este README.
 
 ## Sobre los datos
 
-Nadir es un proyecto de portfolio y no tiene relación con ninguna de las tiendas o marcas que aparecen. En la demo, las tiendas y los productos son reales, pero **los precios son orientativos y el histórico está simulado**: no se consultan en directo. Las cuentas reales usarán datos reales obtenidos de fuentes que lo permitan. Las fotos de producto son de Amazon.es y pertenecen a sus respectivos titulares.
+Nadir es un proyecto de portfolio y no tiene relación con ninguna de las tiendas o marcas que aparecen. En la demo, los precios son orientativos y el histórico está simulado. En las cuentas reales, el catálogo es real (septiembre de 2026) pero la evolución de los precios se simula, y así se indica en la web. Las fotos de producto proceden de las propias tiendas y pertenecen a sus respectivos titulares.
 
 ---
 

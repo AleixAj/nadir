@@ -7,7 +7,8 @@ import { checkProduct } from "@/server/checks";
 //   Authorization: Bearer <CRON_SECRET>
 // Revisa los productos que "tocan" según la frecuencia de cada usuario.
 
-const BATCH = 20;
+const BATCH = 40;
+const PARALLEL = 5;
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -33,12 +34,13 @@ export async function GET(req: Request) {
 
   let ok = 0;
   const failed: { id: string; error?: string }[] = [];
-  for (const { p } of due) {
-    const r = await checkProduct(p);
-    if (r.ok) ok++;
-    else failed.push({ id: p.id, error: r.error });
-    // Una pausa corta entre peticiones para no saturar a las tiendas
-    await new Promise((res) => setTimeout(res, 800));
+  // Varios a la vez, en grupos de PARALLEL. Solo se hace una pausa si alguno del grupo
+  // ha leído una tienda de verdad, para no saturarlas (los del catálogo de prueba no salen a la red)
+  for (let i = 0; i < due.length; i += PARALLEL) {
+    const group = due.slice(i, i + PARALLEL).map((d) => d.p);
+    const results = await Promise.all(group.map((p) => checkProduct(p)));
+    results.forEach((r, k) => (r.ok ? ok++ : failed.push({ id: group[k].id, error: r.error })));
+    if (group.some((p) => !p.catalogId)) await new Promise((res) => setTimeout(res, 500));
   }
 
   return Response.json({ checked: due.length, ok, failed, ms: Date.now() - now });

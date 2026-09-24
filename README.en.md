@@ -21,93 +21,92 @@
 
 **Buy at the lowest point.** Nadir is a price tracker: it follows the products you care about across several stores, keeps their price history and alerts you when they drop below the price you choose.
 
-The name comes from *nadir*, the lowest point of a curve. It is a portfolio project built like a real SaaS product: custom design with a token system, light and dark themes, polished animations, isolated and tested domain logic, and a demo you can use without signing up.
+The name comes from *nadir*, the lowest point of a curve. It is a portfolio project built like a real SaaS product: custom design with a token system, Google accounts, a database, scheduled jobs, tested domain logic, and deployed to production.
 
-> **Demo:** click **“Entrar como demo”** (*Try the demo*) to open an account that already tracks 12 products, with alerts and a one-year history.
-> The public deployment on Cloudflare is on its way. The interface is in Spanish.
+> **Website:** [nadir.aleixaj.com](https://nadir.aleixaj.com) (the interface is in Spanish)
+> **No-signup demo:** click “Entrar como demo” to open an account that already tracks 12 products, with alerts and a one-year history.
+> **Real account:** sign in with Google, search any product in the catalog and start tracking its price.
 
 ## What you can do
 
-- **Dashboard** with this month's savings, active alerts, latest price drops and products close to their target price.
+- **Dashboard** with this week's drops, active alerts, latest price drops and products close to their target price.
+- **Search and add products by name**, with suggestions and photos as you type and keyboard navigation. You can also paste a store link.
 - **My products**: a table with a 7-day sparkline, all-time low, best store and alert status. List filters, search and four sort orders.
 - **Product page**, the main screen:
   - price history chart drawn in SVG, with 7-day, 1-month, 3-month and 1-year periods, a tooltip, the target price line and the *nadir* point highlighted;
-  - store comparison sorted by final price including shipping, with the best option highlighted;
+  - store comparison sorted by final price, with the best option highlighted;
   - price alert with a toggle, shortcuts (all-time low, −5 %, −10 %) and notification channels;
-  - period summary: high, average, low and change.
-- **Add a product** by pasting a supported store URL or searching by name, with a preview before confirming.
-- **Alerts**: active alerts with their progress towards the target, plus a history of sent notifications.
-- **Stores**: status of each store, last check and response time, including an example of a store that is down and a retry button.
-- **Settings**: profile, channels, check frequency, theme and a button to reset the demo.
-- **Alert email**: preview of the email sent when a target is reached.
+  - period summary, “Check price now” and “Stop tracking”.
+- **Alerts**: active alerts with progress towards the target, plus a history of generated notifications.
+- **Stores**: status of each store, last check and retry on failure.
+- **Settings**: Google account, channels, check frequency, theme, sign out and delete the account with all its data.
+- **Installable as an app** (PWA) on mobile or desktop.
 
-Product details:
+## Test catalog
 
-- Responsive design: on mobile the sidebar becomes a bottom bar, tables become lists and dialogs open as bottom sheets.
-- Loading (skeletons), empty and error states on every screen. You can force them with `?estado=vacio`, `?estado=cargando` or `?estado=error`.
-- Light and dark themes with no flash on load: a script in `<head>` applies the theme before the first paint.
-- Demo changes (alerts, added products, settings) are saved in the browser.
-- Accessibility: ARIA roles on tables, tabs, switches and dialogs; visible focus; `Escape` closes the dialog; `prefers-reduced-motion` is respected.
+Large stores (Amazon, PcComponentes, MediaMarkt…) don't allow their pages to be read automatically; in production the data would come from their **affiliate programs** (official catalogs with daily prices). To simulate that honestly:
+
+1. `scripts/seed-catalog.ts` runs 58 Google Shopping Spain searches **once**, through the SerpApi API.
+2. It keeps products from **well-known retailers and official brand stores**, drops accessories and outlier prices (monthly instalments), and groups offers for the same product across stores.
+3. Photos are downloaded, cropped and converted to WebP (`public/catalog/`), and everything is stored in Postgres.
+
+The result is **more than 600 real products**, mostly tech. When you track one, its price starts from the real one and **evolves in a simulated way** on every automatic check, with small changes and occasional deals. The site always says so, with a “test environment” notice and a “simulated price” label.
 
 ## Tech stack
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | Next.js 16 (App Router) | File-based routes, nested layouts and prerendered pages. |
+| Framework | Next.js 16 (App Router) | Server Components, Server Actions, nested layouts and prerendered routes. |
 | UI | React 19 | Components, hooks and the current version of the ecosystem. |
-| Language | TypeScript 5 (strict) | Typed domain models (`Product`, `ShopOffer`, `Chart`...). |
+| Language | TypeScript 5 (strict) | End-to-end typed domain models, from the database schema to the UI. |
 | Styling | Tailwind CSS 4 + CSS tokens | Design colors are CSS variables; Tailwind exposes them as utilities (`bg-surface`, `text-brand-text`). |
-| State | Zustand 5 + `persist` | Global state without boilerplate, saved to `localStorage`. |
-| Animation | Motion 13 + CSS | Motion for interactive parts (dialog, toasts, sliding indicators); CSS for predictable ones (enter animations, chart drawing). |
-| Charts | Custom SVG | Full control over the design (step line, *nadir* point, target) without a charting library. |
-| Icons | Tabler Icons | Imported one by one, so only the icons in use are bundled. |
-| Database | Neon (Postgres) + Drizzle ORM | Serverless Postgres that scales to zero; typed queries and versioned migrations. |
+| State | Zustand 5 | A single store with two modes: demo (in `localStorage`) and real account (synced with the server). |
+| Animation | Motion 13 + CSS | Motion for interactive parts (dialog, toasts, indicators); CSS for predictable ones (enter animations, shine, chart drawing). |
+| Database | Neon (Postgres) + Drizzle ORM | Serverless Postgres, typed queries and versioned migrations. |
 | Auth | Better Auth + Google | Sessions stored in our own database, no passwords. |
-| Server | Server Actions + Zod | Every action checks the session and validates input before touching the database. |
-| Tests | Vitest | Unit tests for pricing logic, page parsing and URL safety. |
-| Deployment | Cloudflare Workers (OpenNext) | Continuous deployment from GitHub and a Cron Trigger that checks prices every hour. |
+| Server | Server Actions + Zod | Every action checks the session and data ownership, and validates input. |
+| Tests | Vitest | Unit tests for pricing logic, chart, page parsing, URL safety and the catalog. |
+| Deployment | Cloudflare Workers (OpenNext) | Continuous deployment from GitHub and a Cron Trigger that checks prices. |
 
 ## Architecture
 
-The logic does not depend on React: it lives in pure functions in `src/lib/` that can be tested on their own. Components only read state and render.
-
 ```txt
-src/lib/demo-data.ts     Products, stores and history generator
-        |
-src/lib/store.ts         Zustand: demo state + persistence
-        |
-src/lib/insights.ts      Sorting, progress to target, alert status
-src/lib/chart.ts         Chart geometry: scales, axes, nadir
-src/lib/format.ts        Spanish formatting for prices, percentages and dates
-        |
-src/app/**               Pages: read from the store and render
+                 ┌──────────────────────── Cloudflare Worker ────────────────────────┐
+ Browser ──────► │ Next.js (OpenNext)                                                 │
+                 │  ├─ Pages and layouts (Server Components)                          │
+                 │  ├─ Server Actions  ── Zod ──► Drizzle ──► Neon Postgres (EU)     │
+                 │  ├─ /api/auth/*  Better Auth + Google                              │
+                 │  └─ /api/cron/check  ◄── Cron Trigger (with a secret)              │
+                 └────────────────────────────────────────────────────────────────────┘
 ```
 
-### Simulated price history
+- **The logic doesn't depend on React.** It lives in pure, tested functions in `src/lib/`: chart geometry, price history, product page parsing, catalog and price simulation.
+- **One interface for the demo and real accounts.** The server maps database rows to the same `Product` model the demo uses, so screens don't care where the data comes from.
+- **The server is the source of truth.** Every action returns the updated account state and the UI replaces its own; small changes (toggling an alert) apply instantly and roll back if the server fails.
+- **Amounts in cents** (integers) to avoid floating-point errors.
 
-`makeSeries()` generates a year of daily prices **deterministically**: the same seed always produces the same series, so the data does not change between visits. There are four curve shapes, so each chart tells a different story:
+### Product page parsing
 
-- `launch`: starts expensive and drops in steps (phones after launch).
-- `volatile`: the price changes often (typical of marketplaces).
-- `stable`: barely moves.
-- `random`: occasional changes.
+When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage()` extracts name, photo and price from **schema.org structured data (JSON-LD)** or **Open Graph** tags, the same ones search engines and social networks use. Before downloading anything, `checkPublicUrl()` blocks internal addresses, private IPs and unusual ports (**SSRF** protection), and redirects are followed manually, validating every hop.
 
-It also adds Black Friday and Prime Day drops, and guarantees that the all-time low, the price 7 days ago and the current price match the product data. The tests check these rules.
+### Chart and price history
 
-### Chart
+`buildChart()` computes scales with "nice" steps, the step line (a price holds until it changes), the lowest point of the period and whether it's the all-time low. `makeSeries()` generates deterministic histories with four curve shapes (launch, volatile, stable, random) plus Black Friday and Prime Day deals.
 
-`buildChart()` works out everything that has to be drawn: "nice" axis steps (1, 2, 2.5, 5 × 10ⁿ), the step line (a price holds until it changes), the area, the axis ticks, the lowest point of the period and whether that point is the all-time low. The `PriceChart` component only renders the SVG, measures its width with `ResizeObserver` and handles the tooltip.
+### Security
 
-### Animations
+- Better Auth sessions in signed cookies; every Server Action checks the session and that the product belongs to the user.
+- All input validated with Zod and parameterized queries through Drizzle.
+- The automatic check route is protected with a secret; keys are stored as Cloudflare secrets.
+- Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+- Account deletion cascades to all its data, plus privacy and terms pages.
 
-They follow a few simple rules:
+### Performance and quality
 
-- Only `transform` and `opacity` are animated.
-- The interface uses strong `ease-out` curves and durations under 300 ms.
-- Anything you can press responds (`scale(0.97)`).
-- Motion is removed under `prefers-reduced-motion`.
-
-There are staggered enter animations on each screen, a chart line that draws itself when the period changes, sliding indicators in segmented controls and navigation, and a dialog that opens as a bottom sheet on mobile.
+- Public pages are prerendered; the app is rendered on the server only when it depends on the session.
+- Icons imported one by one, font via `next/font`, WebP images of a few KB.
+- Animations only on `transform` and `opacity`, hover effects only with a mouse, and everything disabled under `prefers-reduced-motion`.
+- Metadata for search engines and social networks (Open Graph), `robots.txt`, `sitemap.xml` and a PWA manifest.
 
 ## Project structure
 
@@ -115,26 +114,19 @@ There are staggered enter animations on each screen, a chart line that draws its
 src/
 ├── app/
 │   ├── page.tsx              # Landing page
-│   ├── entrar/               # Sign in (demo; Google coming soon)
-│   ├── email/alerta/         # Alert email preview
-│   └── app/                  # The application
-│       ├── layout.tsx        # Shell: sidebar, headers, dialog, toasts
-│       ├── page.tsx          # Dashboard
-│       ├── productos/        # My products + [id] (product page)
-│       ├── alertas/
-│       ├── tiendas/
-│       └── ajustes/
-├── components/
-│   ├── ui.tsx                # Buttons, Switch, Segmented, badges, skeletons...
-│   ├── theme.tsx             # Light/dark theme with no flash
-│   └── app/                  # Shell, add-product dialog, chart
-└── lib/
-    ├── demo-data.ts          # Demo data and history generator
-    ├── store.ts              # Global state (Zustand)
-    ├── chart.ts              # Chart geometry
-    ├── insights.ts           # Derived calculations
-    ├── format.ts             # es-ES formatting
-    └── __tests__/            # Unit tests
+│   ├── entrar/               # Sign in with Google or demo
+│   ├── app/                  # The app (dashboard, products, product page, alerts, stores, settings)
+│   ├── api/auth/             # Better Auth
+│   ├── api/cron/check/       # Automatic price checks
+│   ├── privacidad/, condiciones/, email/alerta/
+│   └── manifest.ts, robots.ts, sitemap.ts
+├── components/               # Base UI, app shell, add-product dialog, chart
+├── db/                       # Schema and connection (Drizzle + Neon)
+├── server/                   # Server Actions, account loader, checks, simulation, page reader
+└── lib/                      # Pure logic and tests (chart, history, catalog, formatting…)
+scripts/seed-catalog.ts       # Test catalog loader
+drizzle/                      # SQL migrations
+worker.ts, wrangler.jsonc     # Cloudflare Worker and Cron Trigger
 ```
 
 ## Run locally
@@ -146,35 +138,35 @@ npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`. The demo works with no setup; for real accounts, copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`.
+The demo works with no setup. For real accounts: copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`. Loading the test catalog also needs a SerpApi key and `npm run catalog:seed`.
 
 ## Scripts
 
 ```bash
-npm run dev        # development server
-npm run build      # production build
-npm run start      # serve the build
-npm run lint       # ESLint
-npm run typecheck  # check TypeScript without emitting files
-npm test           # unit tests with Vitest
-npm run db:migrate # apply database migrations
-npm run preview    # run the app in the Cloudflare runtime
-npm run deploy     # deploy to Cloudflare Workers
+npm run dev           # development server
+npm run build         # production build
+npm run lint          # ESLint
+npm run typecheck     # TypeScript check
+npm test              # unit tests with Vitest
+npm run db:migrate    # apply database migrations
+npm run catalog:seed  # load the test catalog (cached: searches aren't repeated)
+npm run preview       # run the app in the Cloudflare runtime
+npm run deploy        # deploy to Cloudflare Workers
 ```
 
 ## Roadmap
 
-- [x] **Phase 0 · Foundation**: Next.js, TypeScript, Tailwind, design system and light/dark theme.
-- [x] **Phase 1 · MVP with demo**: every screen from the design, no-signup demo, loading, empty and error states, and tests for the logic.
-- [x] **User accounts**: Google sign-in, database and real per-user data.
-- [x] **Phase 2 · Price engine**: product page parsing (JSON-LD / Open Graph), real history and scheduled checks.
-- [ ] **Deployment** at `nadir.aleixaj.com` (Cloudflare Workers).
-- [ ] **Phase 3 · Notifications**: emails with React Email + Resend, then Telegram.
-- [ ] **Phase 4 · Polish**: end-to-end tests with Playwright, installable PWA and screenshots in this README.
+- [x] **Foundation and MVP**: design, every screen, no-signup demo, loading, empty and error states.
+- [x] **Real accounts**: Google, database, per-user data, account deletion.
+- [x] **Price engine**: page parsing, test catalog, history, scheduled checks and in-app alerts.
+- [x] **Deployment** at [nadir.aleixaj.com](https://nadir.aleixaj.com) with continuous deployment.
+- [ ] **Email alerts** with React Email + Resend, then Telegram.
+- [ ] **Production data**: store affiliate catalogs instead of the test catalog.
+- [ ] **End-to-end tests** with Playwright and screenshots in this README.
 
 ## About the data
 
-Nadir is a portfolio project and is not affiliated with any of the stores or brands shown. In the demo, the stores and products are real, but **prices are indicative and the history is simulated**: nothing is fetched live. Real accounts will use real data obtained from sources that allow it. Product photos come from Amazon.es and belong to their respective owners.
+Nadir is a portfolio project and is not affiliated with any of the stores or brands shown. In the demo, prices are indicative and the history is simulated. In real accounts, the catalog is real (September 2026) but price evolution is simulated, and the site says so. Product photos come from the stores themselves and belong to their respective owners.
 
 ---
 

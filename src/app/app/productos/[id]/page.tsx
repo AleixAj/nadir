@@ -19,7 +19,7 @@ import {
 } from "@tabler/icons-react";
 import { PriceChart } from "@/components/app/price-chart";
 import { useLoading } from "@/components/app/shell";
-import { Button, Card, ChangeBadge, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
+import { Button, Card, ChangeBadge, CountUp, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
 import { RANGES, type RangeKey, type Chart } from "@/lib/chart";
 import { minDate, rankOffers, shopsFor, type Product, type RankedOffer } from "@/lib/demo-data";
 import { eur, eurS, parsePrice, pct1, pctS, r2, sinceLabel } from "@/lib/format";
@@ -31,6 +31,20 @@ export default function FichaPage() {
   const product = useDemo((s) => s.products.find((p) => p.id === decodeURIComponent(id)));
   const loading = useLoading();
 
+  if (!product && loading) {
+    return (
+      <div className="flex flex-col gap-5" aria-busy="true" aria-label="Cargando el producto">
+        <div className="flex items-start gap-4">
+          <Skeleton className="size-[88px] rounded-xl" />
+          <div className="flex flex-1 flex-col gap-2.5 pt-1">
+            <Skeleton className="h-6 w-2/3" />
+            <Skeleton className="h-3.5 w-1/2" />
+          </div>
+        </div>
+        <Skeleton className="h-[420px] rounded-xl" />
+      </div>
+    );
+  }
   if (!product) {
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
@@ -74,7 +88,18 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
   const valid = !isNaN(tn) && tn > 0;
   const diff = valid ? r2(p.cur - tn) : 0;
   // Demo: varias tiendas de ejemplo. Cuenta real: la tienda de la URL que sigues
-  const offers: RankedOffer[] = isAccount
+  const offers: RankedOffer[] = isAccount && p.offers?.length
+    ? rankOffers(
+        p.offers.map((o) => ({
+          name: o.store,
+          price: o.price,
+          ship: 0,
+          shipL: o.shipping ?? "Consulta el envío en la tienda",
+          eta: "—",
+          url: o.url,
+        })),
+      )
+    : isAccount
     ? [
         p.lastError
           ? { name: p.store, error: true, best: false }
@@ -92,6 +117,14 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             <span className="inline-flex h-[22px] items-center rounded-full bg-surface-3 px-2 text-xs font-medium text-text">{p.list}</span>
             <Meta icon={<IconCalendar size={14} aria-hidden />}>Seguido desde {p.since}</Meta>
             <Meta icon={<IconBuildingStore size={14} aria-hidden />}>{p.stores} tiendas</Meta>
+            {p.simulated && (
+              <span
+                title="Catálogo de prueba: el producto y su precio de partida son reales; la evolución del precio está simulada."
+                className="inline-flex h-[22px] items-center rounded-full border border-brand-soft-border bg-brand-soft px-2 text-xs font-medium text-brand-text"
+              >
+                Precio simulado
+              </span>
+            )}
             <Meta icon={<IconRefresh size={14} aria-hidden />}>
               Revisado {sinceLabel(p.checked)}
             </Meta>
@@ -113,7 +146,9 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-6 gap-y-4 p-5">
               <div className="flex min-w-[190px] flex-col gap-1">
                 <span className="text-xs font-medium text-text-2">Precio actual · {p.store}</span>
-                <span className="text-[36px] leading-[1.1] font-semibold tracking-[-0.03em]">{eur(p.cur)}</span>
+                <span className="text-[36px] leading-[1.1] font-semibold tracking-[-0.03em]">
+                  <CountUp value={p.cur} format={eur} />
+                </span>
                 <span className="flex items-center gap-1.5 text-xs text-text-3">
                   <ChangeBadge ch={p.ch} />
                   en 7 días
@@ -224,6 +259,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                       <span className="text-right font-semibold">{eur(s.total!)}</span>
                       <StoreLink
                         p={isAccount ? p : undefined}
+                        href={s.url}
                         aria-label={"Ir a " + s.name}
                         className="grid size-7 place-items-center rounded-md text-text-3 transition-colors hover:bg-surface-3 hover:text-text"
                       >
@@ -407,10 +443,22 @@ function BestTag() {
 }
 
 /** Enlace a la página del producto en la tienda (en la demo no lleva a ningún sitio). */
-function StoreLink({ p, children, ...rest }: { p?: Product; children: React.ReactNode; className?: string; "aria-label"?: string }) {
-  if (p?.url) {
+function StoreLink({
+  p,
+  href,
+  children,
+  ...rest
+}: {
+  p?: Product;
+  href?: string;
+  children: React.ReactNode;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const target = href || p?.url;
+  if (p && target && /^https?:/.test(target)) {
     return (
-      <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" {...rest}>
+      <a href={target} target="_blank" rel="noopener noreferrer nofollow" {...rest}>
         {children}
       </a>
     );

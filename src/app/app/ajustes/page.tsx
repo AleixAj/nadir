@@ -19,7 +19,13 @@ const FREQS: { value: Freq; label: string; desc: string; pro?: boolean }[] = [
 const inputCls = "h-9 rounded-md border border-border-strong bg-surface px-2.5 text-[13px] text-text transition-colors focus:border-brand";
 
 export default function AjustesPage() {
-  const { profile, setProfile, channels, setChannel, freq, setFreq, resetDemo } = useDemo();
+  const profile = useDemo((s) => s.profile);
+  const setProfile = useDemo((s) => s.setProfile);
+  const channels = useDemo((s) => s.channels);
+  const setChannel = useDemo((s) => s.setChannel);
+  const freq = useDemo((s) => s.freq);
+  const setFreq = useDemo((s) => s.setFreq);
+  const resetDemo = useDemo((s) => s.resetDemo);
   const { theme, setTheme } = useTheme();
   const isAccount = useIsAccount();
   const account = useDemo((s) => s.account);

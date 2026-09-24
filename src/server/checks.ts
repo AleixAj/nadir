@@ -1,9 +1,10 @@
 import "server-only";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, min } from "drizzle-orm";
 import { db } from "@/db";
-import { alertEvent, pricePoint, product } from "@/db/schema";
+import { alertEvent, catalogOffer, pricePoint, product } from "@/db/schema";
 import { crossedTarget } from "@/lib/history";
 import { fetchProduct } from "./fetch-product";
+import { nextSimulatedPrice } from "./simulation";
 
 type ProductRecord = typeof product.$inferSelect;
 
@@ -12,6 +13,7 @@ type ProductRecord = typeof product.$inferSelect;
  * si ha bajado del objetivo, registra un aviso.
  */
 export async function checkProduct(p: ProductRecord): Promise<{ ok: boolean; priceCents?: number; error?: string }> {
+  if (p.catalogId) return checkSimulated(p);
   const res = await fetchProduct(p.url);
   const now = new Date();
 
@@ -35,6 +37,35 @@ export async function checkProduct(p: ProductRecord): Promise<{ ok: boolean; pri
     .where(eq(product.id, p.id));
 
   if (crossedTarget(prev?.priceCents ?? null, priceCents, p.targetCents, p.alertOn)) {
+    await db.insert(alertEvent).values({ productId: p.id, priceCents, targetCents: p.targetCents! });
+  }
+  return { ok: true, priceCents };
+}
+
+/**
+ * Producto del catálogo de prueba: no se lee la tienda, el precio evoluciona de forma
+ * simulada a partir de su precio real en el catálogo.
+ */
+async function checkSimulated(p: ProductRecord) {
+  const now = new Date();
+  const [prev] = await db
+    .select({ priceCents: pricePoint.priceCents })
+    .from(pricePoint)
+    .where(eq(pricePoint.productId, p.id))
+    .orderBy(desc(pricePoint.checkedAt))
+    .limit(1);
+  const [base] = await db
+    .select({ cents: min(catalogOffer.priceCents) })
+    .from(catalogOffer)
+    .where(eq(catalogOffer.productId, p.catalogId!));
+  const baseCents = base?.cents ?? prev?.priceCents;
+  if (!baseCents) return { ok: false, error: "Producto sin precio en el catálogo." };
+
+  const prevCents = prev?.priceCents ?? baseCents;
+  const priceCents = nextSimulatedPrice(prevCents, baseCents, p.id, now);
+  await db.insert(pricePoint).values({ productId: p.id, priceCents, checkedAt: now });
+  await db.update(product).set({ lastCheckedAt: now, lastError: null }).where(eq(product.id, p.id));
+  if (crossedTarget(prevCents, priceCents, p.targetCents, p.alertOn)) {
     await db.insert(alertEvent).values({ productId: p.id, priceCents, targetCents: p.targetCents! });
   }
   return { ok: true, priceCents };

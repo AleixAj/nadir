@@ -41,17 +41,34 @@ export default function Landing() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg/80 backdrop-blur-md">
+    <div className="relative flex min-h-screen flex-col overflow-x-clip bg-bg text-text">
+      {/* Fondo: cuadrícula muy tenue que se desvanece + resplandor naranja arriba */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[900px]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
+          maskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[-220px] left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full blur-3xl"
+        style={{ background: "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 22%, transparent), transparent)" }}
+      />
+      <header className="sticky top-0 z-10 border-b border-border/70 bg-bg/70 backdrop-blur-md">
         <div className="mx-auto flex h-[60px] max-w-[1200px] items-center gap-6 px-4 desk:px-8">
           <Link href="/" aria-label="Nadir, inicio" className="text-text">
             <Logo size={24} text={17} />
           </Link>
           <nav className="hidden gap-1 desk:flex">
-            <a href="#ventajas" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-text">
+            <a href="#ventajas" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-brand-text">
               Cómo funciona
             </a>
-            <Link href="/email/alerta" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-text">
+            <Link href="/email/alerta" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-brand-text">
               Avisos
             </Link>
           </nav>
@@ -60,7 +77,7 @@ export default function Landing() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="relative flex-1">
         <motion.section
           variants={hero}
           initial="hidden"
@@ -79,7 +96,7 @@ export default function Landing() {
             variants={item}
             className="relative m-0 max-w-[820px] text-[42px] leading-[1.04] font-semibold tracking-[-0.04em] text-balance desk:text-[72px]"
           >
-            Compra en el punto más bajo.
+            Compra en el <span className="text-grad">punto más bajo</span>.
           </motion.h1>
           <motion.p variants={item} className="relative m-0 max-w-[600px] text-base leading-[1.55] text-pretty text-text-2 desk:text-lg">
             Nadir vigila el precio de los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del
@@ -88,7 +105,7 @@ export default function Landing() {
           <motion.div variants={item} className="relative mt-1.5 flex w-full flex-col justify-center gap-2.5 desk:w-auto desk:flex-row">
             <ButtonLink href="/app?demo=1" size="lg" className="group">
               Entrar como demo
-              <IconArrowRight size={17} aria-hidden className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5" />
+              <IconArrowRight size={17} aria-hidden className="nudge" />
             </ButtonLink>
             <ButtonLink href="/entrar?modo=registro" variant="secondary" size="lg">
               Crear cuenta
@@ -104,7 +121,7 @@ export default function Landing() {
             initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translateY(32px) scale(0.98)" }}
             animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.35 }}
-            className="rounded-2xl border border-border bg-surface-2 p-1.5 desk:p-2.5"
+            className="relative rounded-2xl border border-brand-soft-border/70 bg-surface-2 p-1.5 shadow-[0_30px_80px_-30px_var(--glow)] desk:p-2.5"
           >
             <AppPreview />
           </motion.div>
@@ -119,9 +136,9 @@ export default function Landing() {
                 whileInView={{ opacity: 1, transform: "translateY(0px)" }}
                 viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.6, ease: EASE, delay: i * 0.08 }}
-                className="flex flex-col gap-2.5 border-t border-border pt-5"
+                className="group lift surface-grad flex flex-col gap-2.5 rounded-xl border border-border bg-surface/60 p-5"
               >
-                <span className="grid size-9 place-items-center rounded-[9px] bg-brand-soft text-brand-text">
+                <span className="grid size-9 place-items-center rounded-[9px] bg-brand-soft text-brand-text ring-1 ring-brand-soft-border transition-transform duration-300 ease-out-strong group-hover:scale-110 group-hover:-rotate-6">
                   <f.icon size={19} aria-hidden />
                 </span>
                 <h2 className="mt-1 mb-0 text-[17px] font-semibold tracking-[-0.015em]">{f.title}</h2>
@@ -139,19 +156,19 @@ export default function Landing() {
             <p className="m-0 text-xs text-text-3">Proyecto de portfolio sin relación con las tiendas mencionadas. Los precios de la demo son orientativos y el histórico está simulado.</p>
           </div>
           <nav aria-label="Pie de página" className="flex flex-wrap gap-5 text-[13px]">
-            <Link href="/app?demo=1" className="text-text-2 hover:text-text">
+            <Link href="/app?demo=1" className="link-anim text-text-2 hover:text-text">
               Demo
             </Link>
-            <Link href="/entrar" className="text-text-2 hover:text-text">
+            <Link href="/entrar" className="link-anim text-text-2 hover:text-text">
               Iniciar sesión
             </Link>
-            <Link href="/email/alerta" className="text-text-2 hover:text-text">
+            <Link href="/email/alerta" className="link-anim text-text-2 hover:text-text">
               Email de alerta
             </Link>
-            <Link href="/privacidad" className="text-text-2 hover:text-text">
+            <Link href="/privacidad" className="link-anim text-text-2 hover:text-text">
               Privacidad
             </Link>
-            <Link href="/condiciones" className="text-text-2 hover:text-text">
+            <Link href="/condiciones" className="link-anim text-text-2 hover:text-text">
               Condiciones
             </Link>
           </nav>

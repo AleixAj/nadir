@@ -86,7 +86,17 @@ export function PriceChart({
         {/* key={range}: al cambiar de periodo, la línea se vuelve a dibujar */}
         <g key={range}>
           <path d={c.area} fill="var(--chart-fill)" className="fade-in" />
-          <path d={c.line} pathLength={1} fill="none" stroke="var(--brand)" strokeWidth={2} strokeLinejoin="round" className="draw" />
+          <path
+            d={c.line}
+            pathLength={1}
+            fill="none"
+            stroke="var(--brand)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            className="draw"
+            // Un leve resplandor naranja alrededor de la línea
+            style={{ filter: "drop-shadow(0 0 6px var(--glow))" }}
+          />
         </g>
         {c.targetY != null && (
           <line

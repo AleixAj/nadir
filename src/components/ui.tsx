@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "motion/react";
+import { animate, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useId, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ComponentProps, type ReactNode } from "react";
 import {
   IconArmchair,
   IconBlender,
@@ -49,7 +49,7 @@ export function LogoMark({ size = 22 }: { size?: number }) {
 
 export function Logo({ size = 22, text = 16 }: { size?: number; text?: number }) {
   return (
-    <span className="flex items-center gap-[9px]">
+    <span className="logo-tilt flex items-center gap-[9px]">
       <LogoMark size={size} />
       <span className="font-semibold tracking-[-0.025em]" style={{ fontSize: text }}>
         nadir
@@ -64,8 +64,8 @@ type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-brand-solid text-on-brand hover:bg-brand-solid-hover border border-transparent",
-  secondary: "bg-surface text-text border border-border-strong shadow-sm hover:bg-surface-2",
+  primary: "btn-glow bg-brand-solid text-on-brand hover:bg-brand-solid-hover border border-transparent",
+  secondary: "bg-surface text-text border border-border-strong shadow-sm hover:border-brand-soft-border hover:bg-surface-2",
   ghost: "bg-transparent text-text border border-transparent hover:bg-surface-3",
 };
 const sizes: Record<Size, string> = {
@@ -112,7 +112,7 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: () => v
       onClick={onChange}
       className={cx(
         "press flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-none p-0.5",
-        on ? "bg-brand-solid" : "bg-border-strong",
+        on ? "bg-brand-solid shadow-[0_0_14px_-3px_var(--glow)]" : "bg-border-strong",
       )}
     >
       <span
@@ -170,14 +170,14 @@ export function Segmented<T extends string>({
             className={cx(
               "relative inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border-none bg-transparent font-medium whitespace-nowrap transition-colors duration-150",
               size === "sm" ? "h-[26px] min-w-10 px-2 text-xs" : "h-9 px-2.5 text-[13px] desk:h-7",
-              on ? "text-text" : "text-text-2 hover:text-text",
+              on ? "text-brand-text" : "text-text-2 hover:text-text",
               full && "flex-1",
             )}
           >
             {on && (
               <motion.span
                 layoutId={id}
-                className="absolute inset-0 rounded-md bg-seg-active shadow-sm"
+                className="absolute inset-0 rounded-md border border-brand-soft-border bg-seg-active shadow-sm"
                 transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
               />
             )}
@@ -279,10 +279,12 @@ export function changeColor(ch: number) {
 
 /** Minigráfica de los últimos 8 días. */
 export function Sparkline({ values, color, w = 60, h = 22, strokeWidth = 1.5 }: { values: number[]; color: string; w?: number; h?: number; strokeWidth?: number }) {
-  const mn = Math.min(...values);
-  const mx = Math.max(...values);
-  const d = values
-    .map((v, i) => (i ? "L" : "M") + (1 + (i * 58) / (values.length - 1)).toFixed(1) + " " + (mx === mn ? 11 : 3 + ((mx - v) / (mx - mn)) * 16).toFixed(1))
+  // Con un solo precio (producto recién añadido) se dibuja una línea plana
+  const vals = values.length > 1 ? values : [values[0] ?? 0, values[0] ?? 0];
+  const mn = Math.min(...vals);
+  const mx = Math.max(...vals);
+  const d = vals
+    .map((v, i) => (i ? "L" : "M") + (1 + (i * 58) / (vals.length - 1)).toFixed(1) + " " + (mx === mn ? 11 : 3 + ((mx - v) / (mx - mn)) * 16).toFixed(1))
     .join(" ");
   return (
     <svg width={w} height={h} viewBox="0 0 60 22" aria-hidden>
@@ -299,7 +301,7 @@ export function Skeleton({ className, style }: { className?: string; style?: Rea
 
 export function Card({ className, children, ...rest }: ComponentProps<"section">) {
   return (
-    <section className={cx("rounded-[10px] border border-border bg-surface shadow-sm", className)} {...rest}>
+    <section className={cx("surface-grad rounded-[10px] border border-border bg-surface shadow-sm", className)} {...rest}>
       {children}
     </section>
   );
@@ -311,13 +313,11 @@ export const enter = (i: number, className?: string) => ({
   style: { "--i": i } as React.CSSProperties,
 });
 
+/** Logo grande con resplandor, para los estados vacíos. */
 export function EmptyMark() {
   return (
-    <div className="mb-1.5 grid size-[52px] place-items-center rounded-[14px] bg-brand-soft">
-      <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 6.5c4 0 5 10.5 9 10.5s5-10.5 9-10.5" fill="none" stroke="var(--brand)" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="12" cy="17" r="2.2" fill="var(--brand)" />
-      </svg>
+    <div className="mb-1.5 rounded-[14px] shadow-[0_10px_30px_-8px_var(--glow)]">
+      <LogoMark size={52} />
     </div>
   );
 }
@@ -335,4 +335,37 @@ export function ProgressBar({ value, delay = 0 }: { value: number; delay?: numbe
       />
     </span>
   );
+}
+
+/**
+ * Número que cuenta desde 0 hasta su valor al aparecer (y entre valores al cambiar).
+ * Se escribe directamente en el DOM: no provoca renders de React en cada fotograma.
+ */
+export function CountUp({ value, format = (n) => String(Math.round(n)), duration = 0.9 }: { value: number; format?: (n: number) => string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const from = useRef(0);
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (reduce) {
+      el.textContent = format(value);
+      from.current = value;
+      return;
+    }
+    const controls = animate(from.current, value, {
+      duration,
+      ease: [0.23, 1, 0.32, 1],
+      onUpdate: (v) => {
+        el.textContent = format(v);
+      },
+    });
+    from.current = value;
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, reduce]);
+
+  // El contenido inicial no cambia nunca: así React no pisa el texto mientras se anima
+  return <span ref={ref}>{format(0)}</span>;
 }

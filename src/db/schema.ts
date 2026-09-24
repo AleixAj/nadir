@@ -86,6 +86,8 @@ export const product = pgTable(
     lastCheckedAt: timestamp("last_checked_at"),
     /** Último error al revisar el precio (null si fue bien) */
     lastError: text("last_error"),
+    /** Si viene del catálogo de prueba: su id (el precio se simula, no se lee de la tienda) */
+    catalogId: text("catalog_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("product_user_idx").on(t.userId), uniqueIndex("product_user_url_idx").on(t.userId, t.url)],
@@ -132,3 +134,41 @@ export const userSettings = pgTable("user_settings", {
   /** Cada cuánto se revisan sus productos: 1h, 6h o 24h */
   freq: text("freq").notNull().default("24h"),
 });
+
+/* ─── Catálogo de prueba ────────────────────────────────────── */
+// Productos reales cargados una vez desde Google Shopping (scripts/seed-catalog.mjs).
+// Simulan lo que en producción vendría de los catálogos de afiliados de cada tienda.
+
+/** Un producto del catálogo (el mismo modelo puede venderse en varias tiendas). */
+export const catalogProduct = pgTable(
+  "catalog_product",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    /** Categoría de la búsqueda que lo trajo: "Móviles", "Auriculares"… */
+    category: text("category").notNull(),
+    /** Lista de Nadir a la que pertenece: Tecnología u Hogar */
+    list: text("list").notNull(),
+    image: text("image"),
+    /** Texto normalizado (minúsculas, sin tildes) para buscar rápido */
+    searchText: text("search_text").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("catalog_product_category_idx").on(t.category)],
+);
+
+/** Precio de un producto del catálogo en una tienda. */
+export const catalogOffer = pgTable(
+  "catalog_offer",
+  {
+    id: serial("id").primaryKey(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => catalogProduct.id, { onDelete: "cascade" }),
+    store: text("store").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    url: text("url").notNull(),
+    shipping: text("shipping"),
+  },
+  (t) => [index("catalog_offer_product_idx").on(t.productId), uniqueIndex("catalog_offer_product_store_idx").on(t.productId, t.store)],
+);

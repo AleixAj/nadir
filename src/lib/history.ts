@@ -24,8 +24,10 @@ export interface ProductRow {
 }
 
 const DAY = 24 * 60 * 60 * 1000;
-/** Día (en milisegundos a las 00:00 UTC) de una fecha */
-const dayOf = (d: Date) => Math.floor(d.getTime() / DAY);
+// Los días se cuentan con la hora de España (a las 00:30 del 25 ya es día 25, no 24)
+const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
+/** Número de día (días desde 1970) de una fecha, según el calendario de Madrid */
+const dayOf = (d: Date) => Math.floor(Date.parse(dayFmt.format(d) + "T00:00:00Z") / DAY);
 
 /**
  * Un precio por día, desde el primer precio registrado hasta `today`.

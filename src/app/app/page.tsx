@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { IconAlertTriangle, IconArrowDownRight, IconArrowRight, IconBell, IconPackage, IconPigMoney, IconPlus } from "@tabler/icons-react";
 import { useLoading } from "@/components/app/shell";
-import { Button, Card, EmptyMark, enter, ProductThumb, ProgressBar, Skeleton } from "@/components/ui";
+import { Button, Card, CountUp, EmptyMark, enter, ProductThumb, ProgressBar, Skeleton } from "@/components/ui";
 import { DROPS, FAILING_STORE, SUPPORTED_STORES } from "@/lib/demo-data";
 import { eur, eurS, pct1, pctS, sinceLabel } from "@/lib/format";
 import { distanceToTarget, leftToTarget, targetProgress } from "@/lib/insights";
@@ -51,14 +51,19 @@ export default function PanelPage() {
           <EmptyMark />
           <h2 className="m-0 text-[17px] font-semibold">Aún no sigues ningún producto</h2>
           <p className="m-0 max-w-[420px] text-sm text-pretty text-text-2">
-            Pega el enlace de un producto o búscalo por su nombre. Guardaremos su histórico y te avisaremos cuando baje de tu
-            precio objetivo.
+            {isAccount
+              ? "Pega el enlace de la página de un producto. Guardaremos su histórico y te avisaremos cuando baje de tu precio objetivo."
+              : "Pega el enlace de un producto o búscalo por su nombre. Guardaremos su histórico y te avisaremos cuando baje de tu precio objetivo."}
           </p>
           <Button size="md" onClick={openAdd} className="mt-2.5">
             <IconPlus size={15} aria-hidden />
             Añadir tu primer producto
           </Button>
-          <p className="mt-1.5 mb-0 text-xs text-text-3">Compatible con {SUPPORTED_STORES.join(", ").replace(/, ([^,]*)$/, " y $1")}.</p>
+          <p className="mt-1.5 mb-0 max-w-[460px] text-xs text-text-3">
+            {isAccount
+              ? "Funciona con las tiendas que publican los datos de sus productos, como IKEA. Algunas grandes, como Amazon o PcComponentes, no permiten leer sus páginas."
+              : `Compatible con ${SUPPORTED_STORES.join(", ").replace(/, ([^,]*)$/, " y $1")}.`}
+          </p>
         </div>
       )}
 
@@ -82,7 +87,7 @@ export default function PanelPage() {
                   </>
                 )}
               </span>
-              <Link href="/app/tiendas" className="text-[13px] font-medium text-text underline">
+              <Link href="/app/tiendas" className="text-[13px] font-medium text-text underline decoration-warn/50 underline-offset-2 transition-colors hover:decoration-warn">
                 Ver tiendas
               </Link>
             </div>
@@ -94,7 +99,9 @@ export default function PanelPage() {
                 <IconPigMoney size={15} aria-hidden />
                 {isAccount ? "Bajadas en 7 días" : "Ahorrado este mes"}
               </div>
-              <div className="text-[28px] font-semibold tracking-[-0.025em]">{isAccount ? eur(dropSum) : "86,00 €"}</div>
+              <div className="text-[28px] font-semibold tracking-[-0.025em]">
+                <CountUp value={isAccount ? dropSum : 86} format={eur} />
+              </div>
               <div className="text-xs text-text-3">
                 {isAccount ? "Lo que han bajado en total tus productos esta semana" : "En 4 compras, frente al precio medio de 90 días"}
               </div>
@@ -119,7 +126,7 @@ export default function PanelPage() {
                   <Link
                     key={id}
                     href={`/app/productos/${id}`}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-text transition-colors hover:bg-surface-2 ${i ? "border-t border-border" : ""}`}
+                    className={`row-accent flex items-center gap-3 px-4 py-2.5 text-text transition-colors hover:bg-surface-2 ${i ? "border-t border-border" : ""}`}
                   >
                     <ProductThumb icon={p.icon} image={p.image} />
                     <span className="flex min-w-0 flex-1 flex-col">
@@ -146,7 +153,7 @@ export default function PanelPage() {
             <Card {...enter(6, "overflow-hidden")}>
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
                 <h2 className="m-0 text-sm font-semibold">Cerca de tu precio objetivo</h2>
-                <Link href="/app/alertas" className="text-xs font-medium text-brand-text hover:underline">
+                <Link href="/app/alertas" className="link-anim text-xs font-medium text-brand-text">
                   Ver alertas
                 </Link>
               </div>
@@ -154,7 +161,7 @@ export default function PanelPage() {
                 <Link
                   key={p.id}
                   href={`/app/productos/${p.id}`}
-                  className={`flex flex-col gap-2 px-4 py-3 text-text transition-colors hover:bg-surface-2 ${i ? "border-t border-border" : ""}`}
+                  className={`row-accent flex flex-col gap-2 px-4 py-3 text-text transition-colors hover:bg-surface-2 ${i ? "border-t border-border" : ""}`}
                 >
                   <span className="flex w-full items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{p.name}</span>
@@ -181,13 +188,15 @@ function StatLink({ i, href, icon, label, value, children }: { i: number; href: 
   return (
     <Link
       href={href}
-      {...enter(i, "press flex flex-col gap-1.5 rounded-[10px] border border-border bg-surface p-4 text-left text-text shadow-sm hover:border-border-strong")}
+      {...enter(i, "press lift surface-grad flex flex-col gap-1.5 rounded-[10px] border border-border bg-surface p-4 text-left text-text shadow-sm")}
     >
       <span className="flex items-center gap-1.5 text-xs font-medium text-text-2">
         {icon}
         {label}
       </span>
-      <span className="text-[28px] font-semibold tracking-[-0.025em]">{value}</span>
+      <span className="text-[28px] font-semibold tracking-[-0.025em]">
+        <CountUp value={value} />
+      </span>
       <span className="text-xs text-text-3">{children}</span>
     </Link>
   );

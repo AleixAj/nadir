@@ -62,6 +62,9 @@ export interface Product {
   lastError?: string | null;
   /** Día del último precio (ISO). Sin él, se usa el "hoy" de la demo. */
   endDate?: string;
+  /** Catálogo de prueba: el precio se simula y hay ofertas de varias tiendas */
+  simulated?: boolean;
+  offers?: { store: string; price: number; url: string; shipping: string | null }[];
 }
 
 export const HISTORY_DAYS = 365;
@@ -228,6 +231,7 @@ const PICKUP = new Set(["MediaMarkt", "El Corte Inglés", "Fnac"]);
 
 export interface ShopOffer {
   name: string;
+  url?: string;
   price?: number;
   ship?: number;
   shipL?: string;
@@ -343,4 +347,51 @@ export function productFromCatalog(c: CatalogItem, target: number | null, seed: 
     series: makeSeries(base, seed),
     ch: 0,
   };
+}
+
+/** Resultado de la búsqueda por nombre en la demo. */
+export interface DemoHit {
+  key: string;
+  name: string;
+  image?: string;
+  icon: ProductIcon;
+  store: string;
+  price: number;
+  list: ListName;
+  /** Si ya lo sigues, su id (para ir a su ficha) */
+  followedId?: string;
+  catalog?: CatalogItem;
+}
+
+/** Minúsculas y sin tildes, para comparar ("Cafetera De'Longhi" ≈ "cafetera delonghi") */
+const norm = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+/**
+ * Busca en los productos de la demo: primero los que empiezan por lo escrito,
+ * luego los que lo contienen en cualquier palabra. Sin tildes ni mayúsculas.
+ */
+export function searchDemo(q: string, followed: Product[], limit = 6): DemoHit[] {
+  const t = norm(q.trim());
+  if (t.length < 2) return [];
+  const words = t.split(/\s+/);
+  const matches = (name: string) => words.every((w) => norm(name).includes(w));
+  const score = (name: string) => (norm(name).startsWith(t) ? 0 : norm(name).split(/\s+/).some((w) => w.startsWith(words[0])) ? 1 : 2);
+
+  const hits: DemoHit[] = [
+    ...CATALOG.filter((c) => matches(c.name)).map((c) => ({
+      key: "c-" + c.slug,
+      name: c.name,
+      image: c.image,
+      icon: c.icon,
+      store: c.store,
+      price: c.price,
+      list: c.list,
+      followedId: followed.find((p) => p.id === c.slug)?.id,
+      catalog: c,
+    })),
+    ...followed
+      .filter((p) => matches(p.name) && !CATALOG.some((c) => c.slug === p.id))
+      .map((p) => ({ key: "p-" + p.id, name: p.name, image: p.image, icon: p.icon, store: p.store, price: p.cur, list: p.list, followedId: p.id })),
+  ];
+  return hits.sort((a, b) => score(a.name) - score(b.name) || (a.followedId ? 1 : 0) - (b.followedId ? 1 : 0)).slice(0, limit);
 }

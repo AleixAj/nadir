@@ -11,8 +11,9 @@
   },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "nadir" }],
   "routes": [{ "pattern": "nadir.aleixaj.com", "custom_domain": true }],
-  // Revisión automática: cada hora. Cada usuario elige su frecuencia (1 h, 6 h o 24 h)
-  "triggers": { "crons": ["7 * * * *"] },
+  // Revisión automática cada 10 minutos: en cada pasada se revisan los productos a los que
+  // les toca según la frecuencia que ha elegido su usuario (1 h, 6 h o 24 h)
+  "triggers": { "crons": ["*/10 * * * *"] },
   "vars": {
     "BETTER_AUTH_URL": "https://nadir.aleixaj.com"
   },

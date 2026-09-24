@@ -42,13 +42,18 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
-      <header className="flex h-[60px] items-center px-4 desk:px-8">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg text-text">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[-200px] left-1/2 h-[460px] w-[760px] -translate-x-1/2 rounded-full blur-3xl"
+        style={{ background: "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 18%, transparent), transparent)" }}
+      />
+      <header className="relative flex h-[60px] items-center px-4 desk:px-8">
         <Link href="/" aria-label="Volver al inicio" className="text-text">
           <Logo size={24} text={17} />
         </Link>
       </header>
-      <main className="flex flex-1 items-start justify-center px-4 pt-6 pb-12 desk:px-8 desk:py-16">
+      <main className="relative flex flex-1 items-start justify-center px-4 pt-6 pb-12 desk:px-8 desk:py-16">
         <motion.div
           key={String(registro)}
           initial={{ opacity: 0, transform: "translateY(8px)" }}
@@ -62,7 +67,7 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
               {registro ? "Con tu cuenta de Google, en un clic. Sin contraseñas." : "Accede con tu cuenta de Google."}
             </p>
           </div>
-          <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <div className="surface-grad flex flex-col gap-4 rounded-xl border border-border bg-surface/90 p-6 shadow-[0_24px_60px_-30px_var(--glow)] backdrop-blur-sm">
             <button
               type="button"
               onClick={signIn}

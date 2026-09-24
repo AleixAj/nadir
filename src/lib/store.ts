@@ -54,10 +54,16 @@ interface DemoState {
   hideToast: () => void;
 
   enterAccount: (d: AccountData) => void;
+  /**
+   * Vuelve al modo demo (p. ej. un usuario con sesión que abre la demo): quita los datos
+   * de la cuenta, recupera la demo guardada en el navegador y cambia de modo.
+   */
+  enterDemo: () => Promise<void>;
   toggleAlert: (id: string) => void;
   saveAlert: (id: string, target: number, on: boolean) => Promise<void>;
   addProduct: (p: Product) => void;
   addFromUrl: (input: { url: string; target: number | null; list: ListName }) => Promise<boolean>;
+  addFromCatalog: (input: { catalogId: string; target: number | null; list: ListName }) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   checkNow: (id: string) => Promise<void>;
   setChannel: (k: "email" | "telegram", on: boolean) => void;
@@ -89,15 +95,23 @@ const fromAccount = (d: AccountData) => ({
 export const useDemo = create<DemoState>()(
   persist(
     (set, get) => {
+      // Número de la última respuesta aplicada: si llegan desordenadas, se ignoran las antiguas
+      let seq = 0;
+      let applied = 0;
+
       /** Ejecuta una acción del servidor y aplica su respuesta. */
       const apply = async (p: Promise<ActionResult>, okMsg?: string): Promise<boolean> => {
+        const mine = ++seq;
         try {
           const r = await p;
           if (!r.ok) {
             get().showToast(r.error, "error");
             return false;
           }
-          set(fromAccount(r.data));
+          if (mine > applied) {
+            applied = mine;
+            set(fromAccount(r.data));
+          }
           if (okMsg) get().showToast(okMsg);
           return true;
         } catch {
@@ -130,6 +144,15 @@ export const useDemo = create<DemoState>()(
         hideToast: () => set({ toast: null }),
 
         enterAccount: (d) => set({ mode: "account", loadState: "normal", ...fromAccount(d) }),
+        enterDemo: async () => {
+          // Mientras el modo siga siendo "account" no se escribe en localStorage,
+          // así no se pisan los cambios de la demo que el usuario tenga guardados
+          if (get().mode === "account") {
+            set({ ...PERSISTED, alerts: initialAlerts(), account: null, history: [], lastCheckMinutes: null });
+          }
+          await useDemo.persist.rehydrate();
+          set({ mode: "demo" });
+        },
 
         toggleAlert: (id) => {
           const on = !get().alerts[id];
@@ -169,6 +192,7 @@ export const useDemo = create<DemoState>()(
           get().showToast("Producto añadido a " + p.list);
         },
         addFromUrl: (input) => apply(api.addProduct(input), "Producto añadido a " + input.list),
+        addFromCatalog: (input) => apply(api.addFromCatalog(input), "Producto añadido a " + input.list),
         deleteProduct: async (id) => {
           if (isAccount()) return apply(api.deleteProduct(id), "Has dejado de seguir el producto");
           set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
@@ -192,11 +216,18 @@ export const useDemo = create<DemoState>()(
         },
         setChannel: (k, on) => {
           set((s) => ({ channels: { ...s.channels, [k]: on } }));
-          if (isAccount()) apply(api.updateSettings({ [k]: on }));
+          if (!isAccount()) return;
+          apply(api.updateSettings({ [k]: on })).then((ok) => {
+            if (!ok) set((s) => ({ channels: { ...s.channels, [k]: !on } }));
+          });
         },
         setFreq: (freq) => {
+          const prev = get().freq;
           set({ freq });
-          if (isAccount() && freq !== "15m") apply(api.updateSettings({ freq }));
+          if (!isAccount() || freq === "15m") return;
+          apply(api.updateSettings({ freq })).then((ok) => {
+            if (!ok) set({ freq: prev });
+          });
         },
         setProfile: (profile) => {
           set({ profile });

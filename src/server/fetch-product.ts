@@ -61,7 +61,14 @@ async function download(start: URL): Promise<{ html: string; finalUrl: string } 
       bytes.set(c, offset);
       offset += c.length;
     }
-    const html = new TextDecoder().decode(bytes);
+    // Algunas tiendas antiguas usan ISO-8859-1 en vez de UTF-8
+    const charset = /charset=([\w-]+)/i.exec(res.headers.get("content-type") ?? "")?.[1] ?? "utf-8";
+    let html: string;
+    try {
+      html = new TextDecoder(charset).decode(bytes);
+    } catch {
+      html = new TextDecoder().decode(bytes);
+    }
     return { html, finalUrl: url.toString() };
   }
   return { error: "Demasiadas redirecciones." };

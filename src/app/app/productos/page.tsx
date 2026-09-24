@@ -29,7 +29,13 @@ export default function ProductosPage() {
   const products = useProducts();
   const loadState = useDemo((s) => s.loadState);
   const setLoadState = useDemo((s) => s.setLoadState);
-  const { filter, setFilter, sort, setSort, search, setSearch, openAdd } = useDemo();
+  const filter = useDemo((s) => s.filter);
+  const setFilter = useDemo((s) => s.setFilter);
+  const sort = useDemo((s) => s.sort);
+  const setSort = useDemo((s) => s.setSort);
+  const search = useDemo((s) => s.search);
+  const setSearch = useDemo((s) => s.setSearch);
+  const openAdd = useDemo((s) => s.openAdd);
   const errored = loadState === "error" && !loading;
   const empty = products.length === 0;
 
@@ -161,7 +167,7 @@ export default function ProductosPage() {
               <Link
                 key={p.id}
                 href={`/app/productos/${p.id}`}
-                className={cx("flex min-h-16 items-center gap-3 px-3.5 py-3 text-text active:bg-surface-2", i > 0 && "border-t border-border")}
+                className={cx("row-accent flex min-h-16 items-center gap-3 px-3.5 py-3 text-text active:bg-surface-2", i > 0 && "border-t border-border")}
               >
                 <ProductThumb icon={p.icon} image={p.image} size={52} radius={10} />
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -202,7 +208,7 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
           open();
         }
       }}
-      className={cx("grid cursor-pointer items-center gap-4 border-t border-border px-4 py-2.5 transition-colors hover:bg-surface-2", COLS)}
+      className={cx("row-accent grid cursor-pointer items-center gap-4 border-t border-border px-4 py-2.5 transition-colors hover:bg-surface-2", COLS)}
       style={{ animation: `enter 320ms var(--ease-out-strong) ${Math.min(i, 10) * 25}ms both` }}
     >
       <div role="cell" className="flex min-w-0 items-center gap-3">

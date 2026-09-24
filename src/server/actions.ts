@@ -2,12 +2,14 @@
 
 // Acciones que la interfaz llama directamente (Server Actions).
 // Todas comprueban la sesión y que el producto sea del usuario.
-import { and, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, like, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { pricePoint, product, userSettings } from "@/db/schema";
+import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userSettings } from "@/db/schema";
 import { PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
 import { getSession } from "@/lib/auth";
+import { normalizeText } from "@/lib/catalog";
+import { simulatedHistory } from "./simulation";
 import { getAccountData } from "./account";
 import { checkProduct } from "./checks";
 import { fetchProduct } from "./fetch-product";
@@ -33,6 +35,27 @@ async function ownProduct(userId: string, id: string) {
   return row ?? null;
 }
 
+/**
+ * Si al guardar o reactivar una alerta el precio actual ya está por debajo del objetivo,
+ * el aviso se genera en ese momento (no hace falta esperar a que baje de nuevo).
+ * No se repite si ya hay un aviso con ese mismo objetivo.
+ */
+async function alertIfReached(productId: string, targetCents: number) {
+  const [last] = await db
+    .select({ priceCents: pricePoint.priceCents })
+    .from(pricePoint)
+    .where(eq(pricePoint.productId, productId))
+    .orderBy(desc(pricePoint.checkedAt))
+    .limit(1);
+  if (!last || last.priceCents > targetCents) return;
+  const [dup] = await db
+    .select({ id: alertEvent.id })
+    .from(alertEvent)
+    .where(and(eq(alertEvent.productId, productId), eq(alertEvent.targetCents, targetCents)))
+    .limit(1);
+  if (!dup) await db.insert(alertEvent).values({ productId, priceCents: last.priceCents, targetCents });
+}
+
 const idSchema = z.string().uuid();
 const priceSchema = z.number().positive().max(1_000_000).nullable();
 
@@ -50,6 +73,7 @@ export async function previewProduct(url: string): Promise<
 > {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!z.string().url().max(2000).safeParse(url).success) return { ok: false, error: "No es una dirección web válida." };
   const res = await fetchProduct(url);
   if (!res.ok) return { ok: false, error: res.error };
 
@@ -107,6 +131,7 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
   if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
 
   await db.insert(pricePoint).values({ productId: inserted[0].id, priceCents: res.info.priceCents, checkedAt: now });
+  if (target != null) await alertIfReached(inserted[0].id, Math.round(target * 100));
   return fresh(user);
 }
 
@@ -118,10 +143,9 @@ export async function saveAlert(input: { id: string; target: number; on: boolean
   const p = await ownProduct(user.id, parsed.data.id);
   if (!p) return { ok: false, error: "No encontramos este producto." };
 
-  await db
-    .update(product)
-    .set({ targetCents: Math.round(parsed.data.target * 100), alertOn: parsed.data.on })
-    .where(eq(product.id, p.id));
+  const targetCents = Math.round(parsed.data.target * 100);
+  await db.update(product).set({ targetCents, alertOn: parsed.data.on }).where(eq(product.id, p.id));
+  if (parsed.data.on) await alertIfReached(p.id, targetCents);
   return fresh(user);
 }
 
@@ -134,6 +158,7 @@ export async function toggleAlert(id: string): Promise<ActionResult> {
   if (p.targetCents == null) return { ok: false, error: "Primero elige un precio objetivo en la ficha del producto." };
 
   await db.update(product).set({ alertOn: !p.alertOn }).where(eq(product.id, p.id));
+  if (!p.alertOn) await alertIfReached(p.id, p.targetCents);
   return fresh(user);
 }
 
@@ -185,3 +210,113 @@ export async function updateSettings(input: z.input<typeof settingsSchema>): Pro
     .onConflictDoUpdate({ target: userSettings.userId, set: values });
   return fresh(user);
 }
+
+/* ─── Búsqueda por nombre (catálogo de prueba) ──────────────── */
+
+export interface SearchHit {
+  /** Id del producto en el catálogo */
+  id: string;
+  name: string;
+  image: string | null;
+  list: string;
+  /** Tienda más barata y su precio */
+  store: string;
+  price: number;
+  /** En cuántas tiendas está */
+  stores: number;
+}
+
+/** Busca en el catálogo: todas las palabras deben aparecer (sin tildes ni mayúsculas). */
+export async function searchProducts(q: string): Promise<ActionResult<{ available: boolean; hits: SearchHit[] }>> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  if (typeof q !== "string") return { ok: false, error: "Búsqueda no válida." };
+  // Se quitan los comodines de LIKE (% y _) para que no alteren la búsqueda
+  const text = normalizeText(q).replace(/[%_\\]/g, "").slice(0, 80);
+  if (text.length < 2) return { ok: true, data: { available: true, hits: [] } };
+  const words = text.split(" ").filter(Boolean).slice(0, 6);
+
+  const rows = await db
+    .select({
+      id: catalogProduct.id,
+      name: catalogProduct.name,
+      image: catalogProduct.image,
+      list: catalogProduct.list,
+      price: sql<number>`min(${catalogOffer.priceCents})`,
+      store: sql<string>`(array_agg(${catalogOffer.store} order by ${catalogOffer.priceCents}))[1]`,
+      stores: sql<number>`count(*)`,
+    })
+    .from(catalogProduct)
+    .innerJoin(catalogOffer, eq(catalogOffer.productId, catalogProduct.id))
+    .where(and(...words.map((w) => like(catalogProduct.searchText, `%${w}%`))))
+    .groupBy(catalogProduct.id)
+    // Primero los que empiezan por lo escrito; luego los nombres más cortos (más "exactos")
+    .orderBy(sql`case when ${catalogProduct.searchText} like ${text + "%"} then 0 else 1 end`, sql`length(${catalogProduct.name})`)
+    .limit(8);
+
+  return {
+    ok: true,
+    data: {
+      available: true,
+      hits: rows.map((r) => ({ ...r, price: Number(r.price) / 100, stores: Number(r.stores) })),
+    },
+  };
+}
+
+const catalogAddSchema = z.object({
+  catalogId: z.string().min(1).max(120),
+  target: priceSchema,
+  list: z.enum(["Tecnología", "Hogar"]),
+});
+
+/**
+ * Sigue un producto del catálogo de prueba. Se guarda con un histórico de 90 días
+ * simulado (termina en su precio real) para que la gráfica tenga sentido desde el primer día.
+ */
+export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  const parsed = catalogAddSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Datos no válidos." };
+  const { catalogId, target, list } = parsed.data;
+
+  const [{ n }] = await db.select({ n: count() }).from(product).where(eq(product.userId, user.id));
+  if (n >= PRODUCT_LIMIT) return { ok: false, error: `El plan gratuito permite seguir hasta ${PRODUCT_LIMIT} productos.` };
+
+  const [item] = await db.select().from(catalogProduct).where(eq(catalogProduct.id, catalogId));
+  if (!item) return { ok: false, error: "No encontramos este producto en el catálogo." };
+  const offers = await db.select().from(catalogOffer).where(eq(catalogOffer.productId, catalogId)).orderBy(asc(catalogOffer.priceCents));
+  const best = offers[0];
+  if (!best) return { ok: false, error: "Este producto no tiene precios en el catálogo." };
+
+  const [dup] = await db
+    .select({ id: product.id })
+    .from(product)
+    .where(and(eq(product.userId, user.id), eq(product.catalogId, catalogId)));
+  if (dup) return { ok: false, error: "Ya sigues este producto." };
+
+  const now = new Date();
+  const inserted = await db
+    .insert(product)
+    .values({
+      userId: user.id,
+      url: best.url || `catalogo:${catalogId}`,
+      store: best.store,
+      name: item.name,
+      image: item.image,
+      list,
+      targetCents: target != null ? Math.round(target * 100) : null,
+      alertOn: target != null,
+      lastCheckedAt: now,
+      catalogId,
+    })
+    .onConflictDoNothing()
+    .returning({ id: product.id });
+  if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
+
+  const history = simulatedHistory(best.priceCents, catalogId, now);
+  await db.insert(pricePoint).values(history.map((h) => ({ productId: inserted[0].id, ...h })));
+  if (target != null) await alertIfReached(inserted[0].id, Math.round(target * 100));
+  return fresh(user);
+}
+

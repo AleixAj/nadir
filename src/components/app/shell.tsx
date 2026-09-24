@@ -10,6 +10,7 @@ import {
   IconBuildingStore,
   IconCheck,
   IconEye,
+  IconFlask,
   IconLayoutDashboard,
   IconMoon,
   IconPackage,
@@ -67,7 +68,8 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
       useDemo.getState().enterAccount(account);
       return;
     }
-    useDemo.persist.rehydrate();
+    // Demo: recupera los cambios guardados en este navegador (y sale del modo cuenta si hacía falta)
+    useDemo.getState().enterDemo();
     const e = params.get("estado") as LoadState | null;
     if (e) setLoadState(e);
     if (embed) return;
@@ -80,9 +82,19 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
     <BootContext booting={booting}>
       {/* La app ocupa exactamente la pantalla: franja arriba, barra lateral fija
           y solo el contenido (main) hace scroll. */}
-      <div className="flex h-dvh flex-col overflow-hidden bg-bg text-text">
+      <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-text">
+        {/* Resplandor naranja muy suave detrás del contenido */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-0 opacity-70 dark:opacity-100"
+          style={{
+            background:
+              "radial-gradient(900px 420px at 85% -8%, color-mix(in oklab, var(--brand) 11%, transparent), transparent 70%), radial-gradient(700px 380px at 10% 110%, color-mix(in oklab, var(--brand) 6%, transparent), transparent 70%)",
+          }}
+        />
         {!embed && !isAccount && <DemoBanner />}
-        <div className="flex min-h-0 flex-1">
+        {!embed && isAccount && <TestEnvBanner />}
+        <div className="relative flex min-h-0 flex-1">
           <Sidebar />
           <main ref={mainRef} className="flex min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
             <DesktopHeader />
@@ -116,7 +128,7 @@ function DemoBanner() {
   return (
     <div
       role="status"
-      className="flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-border bg-surface-2 px-3 py-1.5 text-center text-xs text-text-2"
+      className="relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2"
     >
       <IconEye size={14} aria-hidden />
       <span>Estás viendo una cuenta de demostración</span>
@@ -124,9 +136,25 @@ function DemoBanner() {
       <span className="text-text-3" aria-hidden>
         ·
       </span>
-      <Link href="/entrar?modo=registro" className="font-medium text-brand-text hover:underline">
+      <Link href="/entrar?modo=registro" className="link-anim font-medium text-brand-text">
         Crear cuenta
       </Link>
+    </div>
+  );
+}
+
+/** Cuenta real: aviso de que el catálogo es de prueba. */
+function TestEnvBanner() {
+  return (
+    <div
+      role="note"
+      className="relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2"
+    >
+      <IconFlask size={14} className="text-brand-text" aria-hidden />
+      <span>
+        <strong className="font-semibold text-text">Entorno de prueba:</strong> catálogo real de septiembre de 2026 con la evolución de
+        precios simulada.
+      </span>
     </div>
   );
 }
@@ -149,7 +177,7 @@ function Sidebar() {
   };
 
   return (
-    <div className="hidden w-[244px] shrink-0 border-r border-border bg-surface-2 desk:block">
+    <div className="hidden w-[244px] shrink-0 border-r border-border bg-surface-2/80 backdrop-blur-sm desk:block">
       <aside aria-label="Navegación principal" className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-3.5">
         <Link href="/" aria-label="Nadir, inicio" className="flex items-center px-2 py-1 text-text">
           <Logo />
@@ -166,18 +194,20 @@ function Sidebar() {
                 onClick={() => n.href === "/app/productos" && setFilter("Todas")}
                 aria-current={a ? "page" : undefined}
                 className={cx(
-                  "press relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
+                  "press group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
                   a ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
                 )}
               >
                 {a && (
                   <motion.span
                     layoutId="nav-active"
-                    className="absolute inset-0 rounded-md bg-surface-3"
+                    className="absolute inset-0 rounded-md bg-brand-soft"
                     transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
-                  />
+                  >
+                    <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
+                  </motion.span>
                 )}
-                <Ic size={17} aria-hidden className="relative" />
+                <Ic size={17} aria-hidden className={cx("relative transition-colors duration-200", a ? "text-brand-text" : "group-hover:text-brand-text")} />
                 <span className="relative flex-1">{n.label}</span>
                 {n.href === "/app/tiendas" && (!isAccount || products.some((p) => p.lastError)) && (
                   <span title="1 tienda con errores" className="relative size-1.5 rounded-full bg-up" />
@@ -208,9 +238,11 @@ function Sidebar() {
                 {a && (
                   <motion.span
                     layoutId="nav-active"
-                    className="absolute inset-0 rounded-md bg-surface-3"
+                    className="absolute inset-0 rounded-md bg-brand-soft"
                     transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
-                  />
+                  >
+                    <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
+                  </motion.span>
                 )}
                 <span className="relative mx-1 size-2 rounded-[2px]" style={{ background: l.dot }} />
                 <span className="relative flex-1">{l.name}</span>
@@ -408,6 +440,13 @@ function MobileNav() {
               a ? "text-brand-text" : "text-text-2",
             )}
           >
+            {a && (
+              <motion.span
+                layoutId="mobile-nav-active"
+                className="absolute top-0 h-[2px] w-8 rounded-full bg-brand shadow-[0_0_10px_var(--glow)]"
+                transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
+              />
+            )}
             <Ic size={22} aria-hidden />
             {n.label}
             {n.href === "/app/alertas" && activeCount > 0 && (
