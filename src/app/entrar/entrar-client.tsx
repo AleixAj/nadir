@@ -84,7 +84,7 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
             <div className="flex items-center gap-3 text-xs text-text-3">
               <span className="h-px flex-1 bg-border" />o<span className="h-px flex-1 bg-border" />
             </div>
-            <Link href="/app?demo=1" className={btn("ghost", "lg", "h-10 w-full border-border text-sm")}>
+            <Link href="/app?demo=1" className={btn("primary", "lg", "h-11 w-full text-sm")}>
               <IconPlayerPlay size={16} aria-hidden />
               Entrar como demo
             </Link>

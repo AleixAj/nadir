@@ -51,9 +51,11 @@ export function getAuth() {
 
 /** Sesión actual (o null) desde un Server Component, Server Action o Route Handler. */
 export async function getSession() {
+  // Leer las cabeceras primero hace que la página se genere en cada visita, nunca en el build
+  const h = await headers();
   if (!process.env.DATABASE_URL) return null;
   try {
-    return await getAuth().api.getSession({ headers: await headers() });
+    return await getAuth().api.getSession({ headers: h });
   } catch {
     return null;
   }
