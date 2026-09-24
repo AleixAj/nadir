@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-/** true si la media query se cumple. En el servidor devuelve `fallback`. */
+/** True when the media query matches. Returns `fallback` on the server. */
 export function useMediaQuery(query: string, fallback = false) {
   return useSyncExternalStore(
     (cb) => {
@@ -15,5 +15,5 @@ export function useMediaQuery(query: string, fallback = false) {
   );
 }
 
-/** Móvil según el diseño: menos de 820 px de ancho. */
+/** Mobile layout: narrower than 820px (matches the `desk` breakpoint). */
 export const useIsMobile = () => useMediaQuery("(max-width: 819.98px)");

@@ -18,12 +18,13 @@ export default function PanelPage() {
   const empty = products.length === 0;
 
   const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+  // Active alerts that have not been reached yet, closest to the target first
   const withAlert = products.filter((p) => p.target && alerts[p.id] && p.alert !== "alcanzado");
   const near = [...withAlert].sort((a, b) => distanceToTarget(a) - distanceToTarget(b)).slice(0, 4);
   const closeOnes = withAlert.filter((p) => leftToTarget(p) < 5).length;
   const isAccount = useIsAccount();
   const lastCheck = useDemo((s) => s.lastCheckMinutes);
-  // Demo: bajadas de ejemplo. Cuenta real: productos que han bajado en 7 días, de más a menos
+  // Demo: sample drops. Real account: products that dropped in the last 7 days, biggest first
   const drops: [string, string, string][] = isAccount
     ? products
         .filter((p) => p.ch < -0.05)
@@ -62,7 +63,7 @@ export default function PanelPage() {
           <p className="mt-1.5 mb-0 max-w-[460px] text-xs text-text-3">
             {isAccount
               ? "Funciona con las tiendas que publican los datos de sus productos, como IKEA. Algunas grandes, como Amazon o PcComponentes, no permiten leer sus páginas."
-              : `Compatible con ${SUPPORTED_STORES.join(", ").replace(/, ([^,]*)$/, " y $1")}.`}
+              : `Compatible con ${joinWithAnd(SUPPORTED_STORES)}.`}
           </p>
         </div>
       )}
@@ -184,6 +185,13 @@ export default function PanelPage() {
   );
 }
 
+// Joins ["A", "B", "C"] as "A, B y C"
+function joinWithAnd(items: readonly string[]) {
+  if (items.length < 2) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+// Summary card that links to another page
 function StatLink({ i, href, icon, label, value, children }: { i: number; href: string; icon: React.ReactNode; label: string; value: number; children: React.ReactNode }) {
   return (
     <Link

@@ -41,7 +41,7 @@ export function AddProductModal() {
   const mobile = useIsMobile();
   const reduce = useReducedMotion();
 
-  // Escape para cerrar
+  // Close with Escape
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
@@ -49,6 +49,7 @@ export function AddProductModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
 
+  // On mobile it slides up from the bottom like a sheet; on desktop it scales in
   const sheet = mobile && !reduce;
 
   return (
@@ -89,7 +90,7 @@ export function AddProductModal() {
   );
 }
 
-/** Un resultado de búsqueda, venga de la demo o de una fuente real. */
+// A search result, from the demo or from the real catalog
 interface Hit {
   key: string;
   name: string;
@@ -101,12 +102,12 @@ interface Hit {
   followedId?: string;
   catalog?: CatalogItem;
   url?: string;
-  /** Cuenta real: id en el catálogo de prueba y en cuántas tiendas está */
+  // Real accounts: id in the test catalog and how many stores sell it
   catalogId?: string;
   stores?: number;
 }
 
-/** Lo que se enseña en la vista previa antes de añadir. */
+// What the preview step shows before adding the product
 interface Preview {
   name: string;
   image?: string | null;
@@ -122,12 +123,50 @@ interface Preview {
 
 const fromCatalog = (c: CatalogItem): Preview => ({ ...c, catalog: c });
 
-/** Resalta en negrita la parte del nombre que coincide con lo escrito. */
+// Demo suggestion built from a catalog item
+const catalogHit = (c: CatalogItem): Hit => ({
+  key: "s-" + c.slug,
+  name: c.name,
+  image: c.image,
+  icon: c.icon,
+  store: c.store,
+  price: c.price,
+  list: c.list,
+  catalog: c,
+});
+
+// Second line of a search result
+function hitSubtitle(h: Hit) {
+  if (h.followedId) return "Ya lo sigues · ver ficha";
+  if (h.stores && h.stores > 1) return `Desde ${h.store} · ${h.stores} tiendas`;
+  return h.list ? `${h.store} · ${h.list}` : h.store;
+}
+
+// Green line at the top of the preview card
+function previewSource(p: Preview) {
+  if (p.catalogId) return `Mejor precio en ${p.store}`;
+  if (p.catalog || p.url) return `Encontrado en ${p.store}`;
+  return p.store;
+}
+
+// Small note at the bottom of the preview card
+function previewNote(p: Preview) {
+  if (p.others) return `También disponible en ${p.others}`;
+  if (p.catalogId) {
+    const inStores = p.stores && p.stores > 1 ? ` · en ${p.stores} tiendas` : "";
+    return `Catálogo de prueba${inStores}: a partir de hoy su precio evolucionará de forma simulada.`;
+  }
+  return "Guardaremos este precio y lo revisaremos automáticamente.";
+}
+
+// Lowercase and without accents, so "telefono" matches "Teléfono"
+const normalize = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+// Highlights the part of the name that matches the search
 function Highlight({ text, q }: { text: string; q: string }) {
   const t = q.trim();
   if (t.length < 2) return <>{text}</>;
-  const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-  const i = norm(text).indexOf(norm(t));
+  const i = normalize(text).indexOf(normalize(t));
   if (i < 0) return <>{text}</>;
   return (
     <>
@@ -157,22 +196,25 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   const [list, setList] = useState<ListName>("Tecnología");
   const [saving, setSaving] = useState(false);
 
-  // Búsqueda
+  // Search
   const [hits, setHits] = useState<Hit[]>([]);
   const [searching, setSearching] = useState(false);
   const [available, setAvailable] = useState(true);
   const [active, setActive] = useState(0);
 
+  // Timer for the fake loading delays in the demo
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Id of the latest search, used to ignore old responses
   const reqId = useRef(0);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Focus the input of each step
   useEffect(() => {
     inputRef.current?.focus();
   }, [mode, step]);
 
-  // Busca mientras escribes (con una pequeña espera para no lanzar una búsqueda por tecla)
+  // Search as you type, with a short debounce so we don't search on every key
   useEffect(() => {
     if (mode !== "search") return;
     const text = q.trim();
@@ -204,7 +246,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
         } else {
           next = searchDemo(text, products);
         }
-        // Solo vale la respuesta de la última búsqueda
+        // Only keep the answer to the latest search
         if (id !== reqId.current) return;
         setHits(next);
         setActive(0);
@@ -218,18 +260,20 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   const toPreview = (p: Preview, list?: ListName) => {
     setFound(p);
     if (list) setList(list);
+    // Suggest a target 10% below the current price
     setTarget(String(Math.round(p.price * 0.9)));
     setStep("preview");
   };
 
   const choose = (h: Hit) => {
     if (h.followedId) {
-      // Ya lo sigues: te llevo a su ficha
+      // Already followed: go to its page
       onClose();
       router.push(`/app/productos/${h.followedId}`);
       return;
     }
     if (h.catalog) {
+      // Demo: fake a short loading step
       const c = h.catalog;
       setStep("loading");
       clearTimeout(timer.current);
@@ -248,7 +292,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     if (!url.trim()) return;
     setStep("loading");
     if (isAccount) {
-      // Cuenta real: el servidor lee la página de la tienda
+      // Real account: the server reads the store page
       try {
         const r = await previewProduct(url.trim());
         if (!r.ok) {
@@ -264,6 +308,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
       }
       return;
     }
+    // Demo: match the URL against the sample catalog after a fake delay
     const hit = detectFromUrl(url);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
@@ -279,24 +324,27 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     if (step !== "preview" || saving) return;
     const t = parsePrice(target);
     const tgt = t > 0 ? t : null;
-    if (isAccount && found.catalogId) {
+
+    // Real account: save on the server and only close if it worked
+    const saveOnServer = async (add: () => Promise<boolean>) => {
       setSaving(true);
-      const ok = await addFromCatalog({ catalogId: found.catalogId, target: tgt, list });
+      const ok = await add();
       setSaving(false);
       if (ok) onClose();
-      return;
+    };
+    if (isAccount && found.catalogId) {
+      const catalogId = found.catalogId;
+      return saveOnServer(() => addFromCatalog({ catalogId, target: tgt, list }));
     }
     if (isAccount && found.url) {
-      setSaving(true);
-      const ok = await addFromUrl({ url: found.url, target: tgt, list });
-      setSaving(false);
-      if (ok) onClose();
-      return;
+      const productUrl = found.url;
+      return saveOnServer(() => addFromUrl({ url: productUrl, target: tgt, list }));
     }
+
+    // Demo: add it to the local store
     if (found.catalog) addProduct({ ...productFromCatalog(found.catalog, tgt, products.length + 20), list });
     onClose();
   };
-
 
   const goUrl = () => {
     setMode("url");
@@ -307,29 +355,35 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     setStep("idle");
   };
 
-  // Sugerencias cuando aún no has escrito nada (solo en la demo)
-  const suggestions: Hit[] = isAccount
-    ? []
-    : CATALOG.slice(0, 4).map((c) => ({ key: "s-" + c.slug, name: c.name, image: c.image, icon: c.icon, store: c.store, price: c.price, list: c.list, catalog: c }));
+  // Suggestions before typing anything (demo only)
+  const suggestions: Hit[] = isAccount ? [] : CATALOG.slice(0, 4).map(catalogHit);
   const typed = q.trim().length >= 2;
   const isSearching = searching && typed;
+  const shown = typed ? hits : suggestions;
 
-  // Teclado: flechas para moverse por la lista, Enter para elegir
+  // Keyboard: arrows move through the list (wrapping around), Enter picks
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const list = typed ? hits : suggestions;
-    if (!list.length) return;
+    if (!shown.length) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => (a + 1) % list.length);
+      setActive((a) => (a + 1) % shown.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((a) => (a - 1 + list.length) % list.length);
+      setActive((a) => (a - 1 + shown.length) % shown.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      choose(list[Math.min(active, list.length - 1)]);
+      choose(shown[Math.min(active, shown.length - 1)]);
     }
   };
-  const shown = typed ? hits : suggestions;
+
+  let title = "Añadir producto";
+  if (step === "preview") title = "Confirmar producto";
+  else if (mode === "url") title = "Pegar enlace";
+
+  // A new key makes AnimatePresence fade between the steps
+  const contentKey = step === "preview" ? "preview" : mode + (step === "loading" ? "-l" : "");
+  const showSearch = mode === "search" && step !== "preview" && step !== "loading";
+  const showUrl = mode === "url" && step !== "preview" && step !== "loading";
 
   return (
     <>
@@ -345,7 +399,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <h2 id="add-title" className="m-0 flex-1 text-base font-semibold">
-          {step === "preview" ? "Confirmar producto" : mode === "url" ? "Pegar enlace" : "Añadir producto"}
+          {title}
         </h2>
         <button
           type="button"
@@ -360,15 +414,15 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
       <div className="flex min-h-0 flex-col gap-3.5 overflow-y-auto px-5 pb-5">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={step === "preview" ? "preview" : mode + (step === "loading" ? "-l" : "")}
+            key={contentKey}
             initial={{ opacity: 0, transform: "translateY(6px)" }}
             animate={{ opacity: 1, transform: "translateY(0px)" }}
             exit={{ opacity: 0, transition: { duration: 0.1 } }}
             transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col gap-3.5"
           >
-            {/* ─── Buscar por nombre ─── */}
-            {mode === "search" && step !== "preview" && step !== "loading" && (
+            {/* Search by name */}
+            {showSearch && (
               <>
                 <label className="relative flex items-center">
                   <IconSearch size={18} className="absolute left-3.5 text-text-3" aria-hidden />
@@ -377,7 +431,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                     value={q}
                     onChange={(e) => {
                       setQ(e.target.value);
-                      // El indicador de "buscando" se enciende al escribir; lo apaga la respuesta
+                      // The spinner turns on here and the search response turns it off
                       if (e.target.value.trim().length >= 2) setSearching(true);
                     }}
                     onKeyDown={onKeyDown}
@@ -391,17 +445,16 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                     className="h-12 w-full rounded-xl border border-border-strong bg-surface-2 pr-10 pl-11 text-[15px] transition-[border-color,box-shadow] duration-200 placeholder:text-text-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--brand-soft)] focus:outline-none"
                   />
                   <span className="absolute right-3 grid size-5 place-items-center text-text-3">
-                    {isSearching ? (
-                      <IconLoader2 size={17} className="animate-spin text-brand" aria-hidden />
-                    ) : q ? (
+                    {isSearching && <IconLoader2 size={17} className="animate-spin text-brand" aria-hidden />}
+                    {!isSearching && q && (
                       <button type="button" aria-label="Borrar búsqueda" onClick={() => setQ("")} className="grid cursor-pointer place-items-center border-none bg-transparent p-0 text-text-3 hover:text-text">
                         <IconX size={16} aria-hidden />
                       </button>
-                    ) : null}
+                    )}
                   </span>
                 </label>
 
-                {/* Altura fija: el modal no cambia de tamaño (ni se mueve) mientras aparecen resultados */}
+                {/* Min height so the modal doesn't jump around while results come in */}
                 <div className="flex min-h-[312px] flex-col gap-3.5">
                   {!typed && !isAccount && <p className="m-0 -mb-1.5 text-[11px] font-semibold tracking-[.05em] text-text-3 uppercase">Sugerencias</p>}
 
@@ -428,13 +481,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                             <span className="truncate text-[13px] font-medium">
                               <Highlight text={h.name} q={q} />
                             </span>
-                            <span className="text-xs text-text-3">
-                              {h.followedId
-                                ? "Ya lo sigues · ver ficha"
-                                : h.stores && h.stores > 1
-                                  ? `Desde ${h.store} · ${h.stores} tiendas`
-                                  : `${h.store}${h.list ? " · " + h.list : ""}`}
-                            </span>
+                            <span className="text-xs text-text-3">{hitSubtitle(h)}</span>
                           </span>
                           <span className="text-[13px] font-semibold">{eur(h.price)}</span>
                           <IconCornerDownLeft
@@ -490,8 +537,8 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
               </>
             )}
 
-            {/* ─── Pegar enlace ─── */}
-            {mode === "url" && step !== "preview" && step !== "loading" && (
+            {/* Paste a link */}
+            {showUrl && (
               <>
                 <form onSubmit={detect} className="flex gap-2">
                   <label className="relative flex flex-1 items-center">
@@ -543,7 +590,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
               </>
             )}
 
-            {/* ─── Cargando ─── */}
+            {/* Loading */}
             {step === "loading" && (
               <div aria-busy="true" aria-label="Cargando el producto" className="flex gap-3.5 rounded-[10px] border border-border p-3.5">
                 <Skeleton className="size-20 rounded-xl" />
@@ -555,7 +602,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* ─── Vista previa ─── */}
+            {/* Preview */}
             {step === "preview" && (
               <Fragment>
                 <div className="flex flex-col overflow-hidden rounded-[10px] border border-brand-soft-border/70 shadow-[0_12px_30px_-18px_var(--glow)]">
@@ -564,18 +611,14 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                     <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
                       <span className="inline-flex items-center gap-[5px] text-xs font-medium text-down">
                         <IconCircleCheck size={14} aria-hidden />
-                        {found.catalogId ? `Mejor precio en ${found.store}` : found.catalog || found.url ? `Encontrado en ${found.store}` : found.store}
+                        {previewSource(found)}
                       </span>
                       <span className="text-[15px] leading-[1.3] font-semibold">{found.name}</span>
                       <span className="text-xl font-semibold tracking-[-0.02em]">{eur(found.price)}</span>
                     </div>
                   </div>
                   <div className="border-t border-border bg-surface-2 px-3.5 py-2.5 text-xs text-text-2">
-                    {found.others
-                      ? `También disponible en ${found.others}`
-                      : found.catalogId
-                        ? `Catálogo de prueba${found.stores && found.stores > 1 ? ` · en ${found.stores} tiendas` : ""}: a partir de hoy su precio evolucionará de forma simulada.`
-                        : "Guardaremos este precio y lo revisaremos automáticamente."}
+                    {previewNote(found)}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

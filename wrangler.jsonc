@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nadir",
-  // Worker propio: la app de OpenNext + la revisión programada de precios
+  // Custom worker: the OpenNext app + the scheduled price check
   "main": "worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -11,8 +11,8 @@
   },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "nadir" }],
   "routes": [{ "pattern": "nadir.aleixaj.com", "custom_domain": true }],
-  // Revisión automática cada 10 minutos: en cada pasada se revisan los productos a los que
-  // les toca según la frecuencia que ha elegido su usuario (1 h, 6 h o 24 h)
+  // Runs every 10 minutes. Each run only checks the products that are due,
+  // based on the frequency each user picked (1 h, 6 h or 24 h)
   "triggers": { "crons": ["*/10 * * * *"] },
   "vars": {
     "BETTER_AUTH_URL": "https://nadir.aleixaj.com"

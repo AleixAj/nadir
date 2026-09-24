@@ -46,11 +46,12 @@ El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfoli
 
 Les grans botigues (Amazon, PcComponentes, MediaMarkt…) no permeten llegir les seves pàgines de manera automàtica; en producció les dades arribarien dels seus **programes d'afiliats** (catàlegs oficials amb preus diaris). Per simular-ho de manera honesta:
 
-1. `scripts/seed-catalog.ts` fa **una sola vegada** 58 cerques a Google Shopping Espanya a través de l'API de SerpApi.
-2. Es queden els productes de **botigues conegudes i botigues oficials de marca**, es descarten accessoris i preus atípics (quotes mensuals), i s'agrupen les ofertes del mateix producte en diferents botigues.
-3. Les fotos es descarreguen, es retallen i es converteixen a WebP (`public/catalog/`), i tot es desa a Postgres.
+1. `scripts/seed-catalog.ts` fa **una sola vegada** 63 cerques a Google Shopping Espanya (API de SerpApi) i es queda amb els productes de **botigues conegudes i botigues oficials de marca**, sense accessoris ni preus atípics.
+2. Per sumar botigues, cerca cada producte pel seu nom (API de Serper) i només accepta resultats que siguin **exactament el mateix model**: no barreja un iPhone 17 amb un 17 Pro, ni capacitats diferents, ni reacondicionats.
+3. Només hi entren botigues **fiables**: cadenes conegudes o botigues ben valorades i amb moltes opinions; mai marketplaces, segona mà ni operadores. Es descarten els preus molt allunyats de la resta i s'ajunten els productes repetits.
+4. Es treuen els productes que es queden amb una sola botiga (sense comparativa no aporten). Les fotos es converteixen a WebP (`public/catalog/`) i tot es desa a Postgres.
 
-El resultat són **més de 600 productes reals**, sobretot tecnologia. Quan en segueixes un, el preu parteix del real i **evoluciona de manera simulada** a cada revisió automàtica, amb canvis petits i ofertes de tant en tant. La web ho indica sempre amb l'avís «Entorn de prova» i l'etiqueta «Preu simulat».
+El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (gairebé 1.500 preus), sobretot tecnologia. La comparativa de la fitxa s'ordena pel preu final, amb enviament. Quan segueixes un producte, el preu parteix del real i **evoluciona de manera simulada** a cada revisió automàtica, amb canvis petits i ofertes de tant en tant. La web ho indica sempre amb l'avís «Entorn de prova» i l'etiqueta «Preu simulat».
 
 ## Stack tècnic
 
@@ -138,7 +139,7 @@ npm install
 npm run dev
 ```
 
-La demo funciona sense configurar res. Per als comptes reals: copia `.env.example` com a `.env.local`, omple la base de dades i les claus de Google, i executa `npm run db:migrate`. Per carregar el catàleg de prova cal, a més, una clau de SerpApi i `npm run catalog:seed`.
+La demo funciona sense configurar res. Per als comptes reals: copia `.env.example` com a `.env.local`, omple la base de dades i les claus de Google, i executa `npm run db:migrate`. Per carregar el catàleg de prova calen, a més, claus de SerpApi i Serper i `npm run catalog:seed` (les cerques es desen a la memòria cau i no es repeteixen).
 
 ## Scripts
 

@@ -1,23 +1,30 @@
-// Sube a Cloudflare las claves secretas que hay en .env.local (sin mostrarlas).
-// Uso: npm run cf:secrets   (antes: npx wrangler login)
+// Uploads the secret keys from .env.local to Cloudflare (without printing them).
+// Usage: npm run cf:secrets   (run `npx wrangler login` first)
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const KEYS = ["DATABASE_URL", "BETTER_AUTH_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CRON_SECRET"];
 
-const env = Object.fromEntries(
-  readFileSync(".env.local", "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l && !l.startsWith("#") && l.includes("="))
-    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
-);
+/** Reads KEY=value lines from an env file, skipping blanks and comments. */
+function readEnvFile(path) {
+  const env = {};
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    if (!line || line.startsWith("#") || !line.includes("=")) continue;
+    const eq = line.indexOf("=");
+    env[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+  }
+  return env;
+}
+
+const env = readEnvFile(".env.local");
 
 const missing = KEYS.filter((k) => !env[k]);
 if (missing.length) {
-  console.error(`Faltan en .env.local: ${missing.join(", ")}`);
+  console.error(`Missing in .env.local: ${missing.join(", ")}`);
   process.exit(1);
 }
 
+// `wrangler secret bulk` reads a JSON object from stdin
 const payload = JSON.stringify(Object.fromEntries(KEYS.map((k) => [k, env[k]])));
-const r = spawnSync("npx", ["wrangler", "secret", "bulk"], { input: payload, stdio: ["pipe", "inherit", "inherit"], shell: true });
-process.exit(r.status ?? 1);
+const result = spawnSync("npx", ["wrangler", "secret", "bulk"], { input: payload, stdio: ["pipe", "inherit", "inherit"], shell: true });
+process.exit(result.status ?? 1);

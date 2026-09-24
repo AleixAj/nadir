@@ -1,4 +1,4 @@
-// Datos de una cuenta real tal y como llegan al cliente.
+// Data for a real account, as sent to the client
 import type { Product } from "./demo-data";
 
 export type Freq = "15m" | "1h" | "6h" | "24h";
@@ -31,12 +31,12 @@ export interface AccountData {
   alerts: Record<string, boolean>;
   history: AccountAlert[];
   settings: AccountSettings;
-  /** Minutos desde la última revisión de precios (null si nunca) */
+  // Minutes since the last price check (null if never)
   lastCheckMinutes: number | null;
 }
 
-/** Resultado de una acción del servidor. */
+// What every server action returns
 export type ActionResult<T = AccountData> = { ok: true; data: T } | { ok: false; error: string };
 
-/** Máximo de productos por cuenta en el plan gratuito */
+// Max products per account on the free plan
 export const PRODUCT_LIMIT = 25;

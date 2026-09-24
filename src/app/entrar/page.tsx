@@ -6,11 +6,11 @@ import { EntrarClient } from "./entrar-client";
 
 export const metadata: Metadata = { title: "Entrar" };
 
-// Depende de la sesión y de las claves de Cloudflare: se genera en cada visita
+// Depends on the session and on Cloudflare env vars, so render on every request
 export const dynamic = "force-dynamic";
 
 export default async function EntrarPage() {
-  // Si ya hay sesión, directo al panel
+  // Already logged in: go straight to the dashboard
   if (await getSession()) redirect("/app");
   return (
     <Suspense>

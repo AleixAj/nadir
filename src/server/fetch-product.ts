@@ -8,7 +8,7 @@ export type FetchResult =
   | { ok: true; url: string; store: string; info: ProductInfo }
   | { ok: false; error: string };
 
-/** Descarga el HTML siguiendo redirecciones a mano, para validar cada salto. */
+// Downloads the HTML. Redirects are followed by hand so every hop gets the SSRF check
 async function download(start: URL): Promise<{ html: string; finalUrl: string } | { error: string }> {
   let url = start;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -18,7 +18,7 @@ async function download(start: URL): Promise<{ html: string; finalUrl: string } 
         redirect: "manual",
         signal: AbortSignal.timeout(10_000),
         headers: {
-          // Nos identificamos como lo que somos: un bot que lee la página una vez
+          // Be honest about who we are: a bot reading the page once
           "User-Agent": "Mozilla/5.0 (compatible; NadirBot/1.0; monitor de precios)",
           Accept: "text/html,application/xhtml+xml",
           "Accept-Language": "es-ES,es;q=0.9",
@@ -29,6 +29,7 @@ async function download(start: URL): Promise<{ html: string; finalUrl: string } 
       return { error: timeout ? "La tienda ha tardado demasiado en responder." : "No hemos podido conectar con la tienda." };
     }
 
+    // Redirect: check the new address before following it
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location");
       if (!loc) return { error: "La tienda ha respondido con una redirección vacía." };
@@ -37,44 +38,56 @@ async function download(start: URL): Promise<{ html: string; finalUrl: string } 
       url = next.url;
       continue;
     }
+    // These usually mean the store is blocking bots
     if (res.status === 403 || res.status === 429 || res.status === 503) {
       return { error: "Esta tienda no permite leer sus páginas automáticamente." };
     }
     if (!res.ok) return { error: `La tienda ha respondido con un error (${res.status}).` };
-    if (!(res.headers.get("content-type") ?? "").includes("html")) return { error: "La dirección no es una página web." };
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("html")) return { error: "La dirección no es una página web." };
 
-    // Lee como mucho MAX_BYTES para no descargar páginas enormes
     const reader = res.body?.getReader();
     if (!reader) return { error: "La página está vacía." };
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    while (size < MAX_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      size += value.length;
-    }
-    reader.cancel().catch(() => {});
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const c of chunks) {
-      bytes.set(c, offset);
-      offset += c.length;
-    }
-    // Algunas tiendas antiguas usan ISO-8859-1 en vez de UTF-8
-    const charset = /charset=([\w-]+)/i.exec(res.headers.get("content-type") ?? "")?.[1] ?? "utf-8";
-    let html: string;
-    try {
-      html = new TextDecoder(charset).decode(bytes);
-    } catch {
-      html = new TextDecoder().decode(bytes);
-    }
-    return { html, finalUrl: url.toString() };
+    const bytes = await readLimited(reader);
+    return { html: decodeHtml(bytes, contentType), finalUrl: url.toString() };
   }
   return { error: "Demasiadas redirecciones." };
 }
 
-/** Lee la página de un producto y devuelve su nombre, foto, precio y tienda. */
+// Reads the body but stops after MAX_BYTES so we never download huge pages
+async function readLimited(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < MAX_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.length;
+  }
+  reader.cancel().catch(() => {});
+
+  // Join all the chunks into one array
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.length;
+  }
+  return bytes;
+}
+
+// Some older stores use ISO-8859-1 instead of UTF-8, so use the charset from the header
+function decodeHtml(bytes: Uint8Array, contentType: string): string {
+  const charset = /charset=([\w-]+)/i.exec(contentType)?.[1] ?? "utf-8";
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    // Unknown charset, fall back to UTF-8
+    return new TextDecoder().decode(bytes);
+  }
+}
+
+// Reads a product page and returns its name, image, price and store
 export async function fetchProduct(input: string): Promise<FetchResult> {
   const check = checkPublicUrl(input);
   if (!check.ok) return { ok: false, error: check.reason };

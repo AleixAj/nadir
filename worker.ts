@@ -1,6 +1,6 @@
-// Punto de entrada del Worker de Cloudflare.
-// Sirve la app (generada por OpenNext) y añade la tarea programada que revisa precios.
-// @ts-expect-error `.open-next/worker.js` se genera al hacer el build
+// Cloudflare Worker entry point.
+// Serves the app (built by OpenNext) and adds the scheduled price check.
+// @ts-expect-error `.open-next/worker.js` is created by the build
 import { default as handler } from "./.open-next/worker.js";
 
 interface Env {
@@ -11,7 +11,7 @@ interface Env {
 export default {
   fetch: handler.fetch,
 
-  // Cron Trigger: llama a la ruta protegida de revisión con la clave secreta
+  // Cron Trigger: calls the protected check route with the secret key
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     const base = env.BETTER_AUTH_URL ?? "https://nadir.aleixaj.com";
     const req = new Request(`${base}/api/cron/check`, {

@@ -1,14 +1,14 @@
 "use client";
 
-// Estado de la app. Funciona en dos modos:
-// - demo: datos de ejemplo guardados en localStorage (cambios que sobreviven a recargar).
-// - account: datos reales del usuario; cada cambio se envía al servidor (Server Actions)
-//   y el estado se sustituye por la respuesta, que es la fuente de verdad.
+// App state. It works in two modes:
+// - demo: sample data saved in localStorage, so changes survive a reload.
+// - account: the user's real data. Every change goes to the server (Server Actions)
+//   and the state is replaced with the response, which is the source of truth.
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/server/actions";
 import type { AccountAlert, AccountData, AccountUser, ActionResult, Freq } from "./account-types";
-import { DEMO_PRODUCTS, type ListName, type Product } from "./demo-data";
+import { DEMO_PRODUCTS, type AlertStatus, type ListName, type Product } from "./demo-data";
 import type { SortKey } from "./insights";
 
 export type { Freq, SortKey };
@@ -17,26 +17,36 @@ export type LoadState = "normal" | "vacio" | "cargando" | "error";
 export type ListFilter = "Todas" | ListName;
 export type Mode = "demo" | "account";
 
-const initialAlerts = () =>
-  Object.fromEntries(
-    DEMO_PRODUCTS.filter((p) => p.alert !== "none").map((p) => [p.id, p.alert === "activa" || p.alert === "alcanzado"]),
-  );
+/** Demo alerts: on for active or reached alerts, off for paused ones. */
+function initialAlerts(): Record<string, boolean> {
+  const alerts: Record<string, boolean> = {};
+  for (const p of DEMO_PRODUCTS) {
+    if (p.alert === "none") continue;
+    alerts[p.id] = p.alert === "activa" || p.alert === "alcanzado";
+  }
+  return alerts;
+}
+
+function alertStatus(price: number, target: number, on: boolean): AlertStatus {
+  if (price <= target) return "alcanzado";
+  return on ? "activa" : "pausada";
+}
 
 interface DemoState {
   mode: Mode;
   products: Product[];
-  /** Alerta encendida o pausada, por producto */
+  /** Alert on (true) or paused (false), by product id */
   alerts: Record<string, boolean>;
   channels: { email: boolean; telegram: boolean };
   freq: Freq;
   profile: { name: string; email: string };
 
-  // Solo en modo cuenta
+  // Account mode only
   account: AccountUser | null;
   history: AccountAlert[];
   lastCheckMinutes: number | null;
 
-  // Estado de la interfaz (no se guarda)
+  // UI state (not saved)
   loadState: LoadState;
   filter: ListFilter;
   sort: SortKey;
@@ -55,8 +65,8 @@ interface DemoState {
 
   enterAccount: (d: AccountData) => void;
   /**
-   * Vuelve al modo demo (p. ej. un usuario con sesión que abre la demo): quita los datos
-   * de la cuenta, recupera la demo guardada en el navegador y cambia de modo.
+   * Switches back to demo mode (e.g. a signed-in user opens the demo): clears the
+   * account data and loads the demo saved in this browser.
    */
   enterDemo: () => Promise<void>;
   toggleAlert: (id: string) => void;
@@ -72,6 +82,7 @@ interface DemoState {
   resetDemo: () => void;
 }
 
+/** Default values for the fields saved in localStorage. */
 const PERSISTED = {
   products: DEMO_PRODUCTS,
   alerts: initialAlerts(),
@@ -80,7 +91,7 @@ const PERSISTED = {
   profile: { name: "Aleix", email: "aleix@ejemplo.com" },
 };
 
-/** Pasa los datos de la cuenta al formato del estado. */
+/** Maps account data from the server to the store shape. */
 const fromAccount = (d: AccountData) => ({
   products: d.products,
   alerts: d.alerts,
@@ -95,11 +106,11 @@ const fromAccount = (d: AccountData) => ({
 export const useDemo = create<DemoState>()(
   persist(
     (set, get) => {
-      // Número de la última respuesta aplicada: si llegan desordenadas, se ignoran las antiguas
+      // Request counters: if responses arrive out of order, older ones are ignored
       let seq = 0;
       let applied = 0;
 
-      /** Ejecuta una acción del servidor y aplica su respuesta. */
+      /** Runs a server action and puts its response in the store. Returns true on success. */
       const apply = async (p: Promise<ActionResult>, okMsg?: string): Promise<boolean> => {
         const mine = ++seq;
         try {
@@ -145,8 +156,8 @@ export const useDemo = create<DemoState>()(
 
         enterAccount: (d) => set({ mode: "account", loadState: "normal", ...fromAccount(d) }),
         enterDemo: async () => {
-          // Mientras el modo siga siendo "account" no se escribe en localStorage,
-          // así no se pisan los cambios de la demo que el usuario tenga guardados
+          // While mode is still "account" nothing is written to localStorage,
+          // so the saved demo changes are not overwritten here
           if (get().mode === "account") {
             set({ ...PERSISTED, alerts: initialAlerts(), account: null, history: [], lastCheckMinutes: null });
           }
@@ -156,7 +167,7 @@ export const useDemo = create<DemoState>()(
 
         toggleAlert: (id) => {
           const on = !get().alerts[id];
-          // Cambio inmediato en pantalla; si el servidor falla, se deshace
+          // Update the UI right away and undo it if the server fails
           set((s) => ({ alerts: { ...s.alerts, [id]: on } }));
           if (!isAccount()) {
             get().showToast(on ? "Alerta activada" : "Alerta pausada");
@@ -173,9 +184,7 @@ export const useDemo = create<DemoState>()(
           }
           set((s) => ({
             alerts: { ...s.alerts, [id]: on },
-            products: s.products.map((p) =>
-              p.id === id ? { ...p, target, alert: p.cur <= target ? "alcanzado" : on ? "activa" : "pausada" } : p,
-            ),
+            products: s.products.map((p) => (p.id === id ? { ...p, target, alert: alertStatus(p.cur, target, on) } : p)),
           }));
           get().showToast("Alerta guardada");
         },
@@ -241,10 +250,10 @@ export const useDemo = create<DemoState>()(
     },
     {
       name: "nadir-demo",
-      // Subir la versión descarta los datos guardados con un formato antiguo
+      // Bumping the version drops data saved in an old format
       version: 4,
       migrate: () => ({ ...PERSISTED, alerts: initialAlerts() }),
-      // En modo cuenta no se escribe nada en el navegador: los datos viven en el servidor
+      // In account mode nothing is saved in the browser; the data lives on the server
       storage: createJSONStorage(() => ({
         getItem: (k) => localStorage.getItem(k),
         setItem: (k, v) => {
@@ -252,6 +261,7 @@ export const useDemo = create<DemoState>()(
         },
         removeItem: (k) => localStorage.removeItem(k),
       })),
+      // AppShell loads the saved demo itself (see enterDemo)
       skipHydration: true,
       partialize: (s) => ({
         products: s.products,
@@ -264,7 +274,7 @@ export const useDemo = create<DemoState>()(
   ),
 );
 
-/** Productos visibles según el estado de carga (el estado "vacío" simula una cuenta nueva). */
+/** Products to show. The "vacio" state fakes a brand new account with none. */
 export const useProducts = () => {
   const products = useDemo((s) => s.products);
   const loadState = useDemo((s) => s.loadState);

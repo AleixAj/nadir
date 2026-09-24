@@ -46,11 +46,12 @@ El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de p
 
 Las grandes tiendas (Amazon, PcComponentes, MediaMarkt…) no permiten leer sus páginas de forma automática; en producción los datos llegarían de sus **programas de afiliados** (catálogos oficiales con precios diarios). Para simularlo de forma honesta:
 
-1. `scripts/seed-catalog.ts` hace **una sola vez** 58 búsquedas en Google Shopping España a través de la API de SerpApi.
-2. Se quedan los productos de **tiendas conocidas y tiendas oficiales de marca**, se descartan accesorios y precios atípicos (cuotas mensuales), y se agrupan las ofertas del mismo producto en distintas tiendas.
-3. Las fotos se descargan, se recortan y se convierten a WebP (`public/catalog/`), y todo se guarda en Postgres.
+1. `scripts/seed-catalog.ts` hace **una sola vez** 63 búsquedas en Google Shopping España (API de SerpApi) y se queda con los productos de **tiendas conocidas y tiendas oficiales de marca**, sin accesorios ni precios atípicos.
+2. Para sumar tiendas, busca cada producto por su nombre (API de Serper) y solo acepta resultados que sean **exactamente el mismo modelo**: no mezcla un iPhone 17 con un 17 Pro, ni capacidades distintas, ni reacondicionados.
+3. Solo entran tiendas **fiables**: cadenas conocidas o tiendas con buena valoración y muchas opiniones; nunca marketplaces, segunda mano ni operadoras. Se descartan los precios muy alejados del resto y se juntan los productos repetidos.
+4. Se quitan los productos que se quedan con una sola tienda (sin comparativa no aportan). Las fotos se convierten a WebP (`public/catalog/`) y todo se guarda en Postgres.
 
-El resultado son **más de 600 productos reales**, sobre todo tecnología. Al seguir uno, su precio parte del real y **evoluciona de forma simulada** en cada revisión automática, con cambios pequeños y ofertas de vez en cuando. La web lo indica siempre con el aviso «Entorno de prueba» y la etiqueta «Precio simulado».
+El resultado son **347 productos reales, todos con precio en 2 tiendas o más** (casi 1.500 precios), sobre todo tecnología. La comparativa de la ficha se ordena por precio final, con envío. Al seguir un producto, su precio parte del real y **evoluciona de forma simulada** en cada revisión automática, con cambios pequeños y ofertas de vez en cuando. La web lo indica siempre con el aviso «Entorno de prueba» y la etiqueta «Precio simulado».
 
 ## Stack técnico
 
@@ -138,7 +139,7 @@ npm install
 npm run dev
 ```
 
-La demo funciona sin configurar nada. Para las cuentas reales: copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`. Para cargar el catálogo de prueba hace falta además una clave de SerpApi y `npm run catalog:seed`.
+La demo funciona sin configurar nada. Para las cuentas reales: copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`. Para cargar el catálogo de prueba hacen falta además claves de SerpApi y Serper y `npm run catalog:seed` (las búsquedas se guardan en caché y no se repiten).
 
 ## Scripts
 

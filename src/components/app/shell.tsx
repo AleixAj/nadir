@@ -41,7 +41,18 @@ const LISTS = [
   { name: "Hogar" as const, dot: "#0d9488" },
 ];
 
+// "/app" only matches itself; other links also match their sub-pages
 const isActive = (path: string, href: string) => (href === "/app" ? path === "/app" : path.startsWith(href));
+
+const BANNER_CLASS =
+  "relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2";
+
+// Number of alerts that are on and not reached yet
+function useActiveAlertCount() {
+  const products = useProducts();
+  const alerts = useDemo((s) => s.alerts);
+  return products.filter((p) => alerts[p.id] && p.alert !== "alcanzado").length;
+}
 
 export function AppShell({ children, account }: { children: ReactNode; account: AccountData | null }) {
   const params = useSearchParams();
@@ -50,25 +61,24 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
   const isAccount = useIsAccount();
   const wantsAccount = !!account && params.get("demo") !== "1";
   const [demoBooting, setDemoBooting] = useState(!embed && !wantsAccount);
-  // Con cuenta, "cargando" dura hasta que sus datos entran en el estado
+  // With an account, loading lasts until its data is in the store
   const booting = wantsAccount ? !isAccount : demoBooting;
   const mainRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
 
-  // El scroll está en <main>, no en la ventana: al cambiar de pantalla, vuelve arriba
+  // <main> scrolls, not the window, so reset it on every page change
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0);
   }, [pathname]);
 
-  // Carga inicial. Con sesión: datos reales (ya vienen del servidor).
-  // Sin sesión (o con ?demo=1): recupera la demo guardada y enseña los esqueletos un momento.
-  // ?estado=vacio|cargando|error permite ver cada estado de la interfaz.
+  // First load. Signed in: real data that already came from the server.
+  // Signed out (or ?demo=1): load the saved demo and show skeletons for a moment.
+  // ?estado=vacio|cargando|error forces each UI state.
   useEffect(() => {
     if (wantsAccount && account) {
       useDemo.getState().enterAccount(account);
       return;
     }
-    // Demo: recupera los cambios guardados en este navegador (y sale del modo cuenta si hacía falta)
     useDemo.getState().enterDemo();
     const e = params.get("estado") as LoadState | null;
     if (e) setLoadState(e);
@@ -80,10 +90,9 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
 
   return (
     <BootContext booting={booting}>
-      {/* La app ocupa exactamente la pantalla: franja arriba, barra lateral fija
-          y solo el contenido (main) hace scroll. */}
+      {/* Full-screen layout: banner on top, fixed sidebar, only <main> scrolls */}
       <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-text">
-        {/* Resplandor naranja muy suave detrás del contenido */}
+        {/* Soft orange glow behind the content */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-0 opacity-70 dark:opacity-100"
@@ -112,12 +121,13 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
   );
 }
 
-/* El arranque va en un contexto y no en el store, para que no se guarde. */
+// Boot state lives in a context instead of the store so it never gets saved
 const Boot = createContext(false);
 function BootContext({ booting, children }: { booting: boolean; children: ReactNode }) {
   return <Boot.Provider value={booting}>{children}</Boot.Provider>;
 }
-/** true mientras se "cargan" los datos (arranque o estado de carga forzado). */
+
+// True while data is "loading" (first load or ?estado=cargando)
 export function useLoading() {
   const booting = useContext(Boot);
   const loadState = useDemo((s) => s.loadState);
@@ -126,10 +136,7 @@ export function useLoading() {
 
 function DemoBanner() {
   return (
-    <div
-      role="status"
-      className="relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2"
-    >
+    <div role="status" className={BANNER_CLASS}>
       <IconEye size={14} aria-hidden />
       <span>Estás viendo una cuenta de demostración</span>
       <span className="hidden text-text-3 desk:inline">(precios orientativos)</span>
@@ -143,13 +150,10 @@ function DemoBanner() {
   );
 }
 
-/** Cuenta real: aviso de que el catálogo es de prueba. */
+// Real accounts: tells the user the catalog is test data
 function TestEnvBanner() {
   return (
-    <div
-      role="note"
-      className="relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2"
-    >
+    <div role="note" className={BANNER_CLASS}>
       <IconFlask size={14} className="text-brand-text" aria-hidden />
       <span>
         <strong className="font-semibold text-text">Entorno de prueba:</strong> catálogo real de septiembre de 2026 con la evolución de
@@ -159,17 +163,29 @@ function TestEnvBanner() {
   );
 }
 
+// Orange highlight behind the active sidebar link. It slides between links thanks to layoutId.
+function SidebarHighlight() {
+  return (
+    <motion.span layoutId="nav-active" className="absolute inset-0 rounded-md bg-brand-soft" transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}>
+      <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
+    </motion.span>
+  );
+}
+
 function Sidebar() {
   const path = usePathname();
   const products = useProducts();
-  const alerts = useDemo((s) => s.alerts);
   const filter = useDemo((s) => s.filter);
   const setFilter = useDemo((s) => s.setFilter);
   const profile = useDemo((s) => s.profile);
   const accountUser = useDemo((s) => s.account);
   const isAccount = useIsAccount();
-  const activeCount = products.filter((p) => alerts[p.id] && p.alert !== "alcanzado").length;
+  const activeCount = useActiveAlertCount();
   const onProducts = path === "/app/productos";
+  // When "Mis productos" is filtered by a list, the list is highlighted instead of the menu item
+  const listSelected = onProducts && filter !== "Todas";
+  // The demo always shows one store with errors
+  const storeHasErrors = !isAccount || products.some((p) => p.lastError);
 
   const counts: Record<string, string> = {
     "/app/productos": String(products.length),
@@ -184,32 +200,26 @@ function Sidebar() {
         </Link>
         <nav className="flex flex-col gap-0.5">
           {NAV.map((n) => {
-            // En "Mis productos" filtrado por lista, se resalta la lista y no el menú
-            const a = isActive(path, n.href) && !(n.href === "/app/productos" && onProducts && filter !== "Todas");
+            const isProducts = n.href === "/app/productos";
+            const active = isActive(path, n.href) && !(isProducts && listSelected);
             const Ic = n.icon;
             return (
               <Link
                 key={n.href}
                 href={n.href}
-                onClick={() => n.href === "/app/productos" && setFilter("Todas")}
-                aria-current={a ? "page" : undefined}
+                onClick={() => {
+                  if (isProducts) setFilter("Todas");
+                }}
+                aria-current={active ? "page" : undefined}
                 className={cx(
                   "press group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
-                  a ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
+                  active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
                 )}
               >
-                {a && (
-                  <motion.span
-                    layoutId="nav-active"
-                    className="absolute inset-0 rounded-md bg-brand-soft"
-                    transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
-                  >
-                    <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
-                  </motion.span>
-                )}
-                <Ic size={17} aria-hidden className={cx("relative transition-colors duration-200", a ? "text-brand-text" : "group-hover:text-brand-text")} />
+                {active && <SidebarHighlight />}
+                <Ic size={17} aria-hidden className={cx("relative transition-colors duration-200", active ? "text-brand-text" : "group-hover:text-brand-text")} />
                 <span className="relative flex-1">{n.label}</span>
-                {n.href === "/app/tiendas" && (!isAccount || products.some((p) => p.lastError)) && (
+                {n.href === "/app/tiendas" && storeHasErrors && (
                   <span title="1 tienda con errores" className="relative size-1.5 rounded-full bg-up" />
                 )}
                 {counts[n.href] && (
@@ -224,7 +234,7 @@ function Sidebar() {
         <div className="flex flex-col gap-0.5">
           <div className="px-2 pb-1.5 text-[11px] font-semibold tracking-[.04em] text-text-3 uppercase">Listas</div>
           {LISTS.map((l) => {
-            const a = onProducts && filter === l.name;
+            const active = onProducts && filter === l.name;
             return (
               <Link
                 key={l.name}
@@ -232,18 +242,10 @@ function Sidebar() {
                 onClick={() => setFilter(l.name)}
                 className={cx(
                   "press relative flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
-                  a ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
+                  active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
                 )}
               >
-                {a && (
-                  <motion.span
-                    layoutId="nav-active"
-                    className="absolute inset-0 rounded-md bg-brand-soft"
-                    transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
-                  >
-                    <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
-                  </motion.span>
-                )}
+                {active && <SidebarHighlight />}
                 <span className="relative mx-1 size-2 rounded-[2px]" style={{ background: l.dot }} />
                 <span className="relative flex-1">{l.name}</span>
                 <span className="relative text-xs text-text-3">{products.filter((p) => p.list === l.name).length}</span>
@@ -252,6 +254,7 @@ function Sidebar() {
           })}
         </div>
         <div className="flex-1" />
+        {/* Savings card with fixed sample numbers, demo only */}
         {!isAccount && products.length > 0 && (
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-border bg-surface p-3">
             <div className="flex items-center gap-1.5 text-xs text-text-2">
@@ -277,11 +280,11 @@ function Sidebar() {
   );
 }
 
-/** Foto de Google si la hay; si no, las iniciales. */
+// Google profile photo if there is one, otherwise the initials
 export function Avatar({ name, image, size = 30 }: { name: string; image?: string | null; size?: number }) {
   if (image) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- foto externa de Google, ya optimizada
+      // eslint-disable-next-line @next/next/no-img-element -- external Google photo, already optimized
       <img src={image} alt="" width={size} height={size} referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
     );
   }
@@ -303,7 +306,7 @@ const initials = (name: string) =>
     .map((w) => w[0]?.toUpperCase())
     .join("");
 
-/** Título de la cabecera según la ruta. */
+// Header title for the current route. isFicha is true on a product page.
 function usePageTitle() {
   const path = usePathname();
   const products = useDemo((s) => s.products);
@@ -375,6 +378,7 @@ function DesktopHeader() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
+            // Results are shown on the products page
             if (path !== "/app/productos") router.push("/app/productos");
           }}
           placeholder="Buscar en mis productos"
@@ -415,9 +419,8 @@ function MobileHeader() {
 
 function MobileNav() {
   const path = usePathname();
-  const products = useProducts();
-  const alerts = useDemo((s) => s.alerts);
-  const activeCount = products.filter((p) => alerts[p.id] && p.alert !== "alcanzado").length;
+  const activeCount = useActiveAlertCount();
+  // Mobile uses the short labels and adds Settings at the end
   const items = [
     ...NAV.map((n) => ({ ...n, label: n.short })),
     { href: "/app/ajustes", label: "Ajustes", short: "Ajustes", icon: IconSettings },
@@ -428,19 +431,19 @@ function MobileNav() {
       className="fixed inset-x-0 bottom-0 z-20 grid h-16 grid-cols-5 border-t border-border bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md desk:hidden"
     >
       {items.map((n) => {
-        const a = isActive(path, n.href);
+        const active = isActive(path, n.href);
         const Ic = n.icon;
         return (
           <Link
             key={n.href}
             href={n.href}
-            aria-current={a ? "page" : undefined}
+            aria-current={active ? "page" : undefined}
             className={cx(
               "press relative flex flex-col items-center justify-center gap-[3px] text-[11px] font-medium",
-              a ? "text-brand-text" : "text-text-2",
+              active ? "text-brand-text" : "text-text-2",
             )}
           >
-            {a && (
+            {active && (
               <motion.span
                 layoutId="mobile-nav-active"
                 className="absolute top-0 h-[2px] w-8 rounded-full bg-brand shadow-[0_0_10px_var(--glow)]"
@@ -465,6 +468,7 @@ function Toaster() {
   const toast = useDemo((s) => s.toast);
   const hide = useDemo((s) => s.hideToast);
 
+  // Hide the toast after a few seconds
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(hide, 2800);
@@ -483,13 +487,20 @@ function Toaster() {
             transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
             className="flex max-w-[min(420px,calc(100vw-32px))] items-center gap-2.5 rounded-lg bg-toast-bg py-2.5 pr-3.5 pl-2.5 text-[13px] font-medium text-toast-text shadow-lg"
           >
-            <span className={cx("grid size-5 shrink-0 place-items-center rounded-full text-white", toast.tone === "error" ? "bg-[#dc2626]" : "bg-[#16a34a]")}>
-              {toast.tone === "error" ? <IconX size={13} aria-hidden /> : <IconCheck size={13} aria-hidden />}
-            </span>
+            <ToastIcon isError={toast.tone === "error"} />
             {toast.msg}
           </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Red cross for errors, green tick otherwise
+function ToastIcon({ isError }: { isError: boolean }) {
+  return (
+    <span className={cx("grid size-5 shrink-0 place-items-center rounded-full text-white", isError ? "bg-[#dc2626]" : "bg-[#16a34a]")}>
+      {isError ? <IconX size={13} aria-hidden /> : <IconCheck size={13} aria-hidden />}
+    </span>
   );
 }

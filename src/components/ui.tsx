@@ -28,11 +28,12 @@ import {
 import type { ProductIcon } from "@/lib/demo-data";
 import { pctS } from "@/lib/format";
 
+// Joins class names and skips the falsy ones
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
-/* ─── Marca ─────────────────────────────────────────────────── */
+// Brand
 
-/** Logo de Nadir. Se usa la versión de 64 px para tamaños pequeños y la de 256 para el resto. */
+// Uses the 64px image for small sizes and the 256px one for the rest
 export function LogoMark({ size = 22 }: { size?: number }) {
   return (
     <Image
@@ -58,7 +59,7 @@ export function Logo({ size = 22, text = 16 }: { size?: number; text?: number })
   );
 }
 
-/* ─── Botones ───────────────────────────────────────────────── */
+// Buttons
 
 type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md" | "lg";
@@ -74,6 +75,7 @@ const sizes: Record<Size, string> = {
   lg: "h-11 px-5 text-[15px] rounded-lg gap-2",
 };
 
+// Button classes, also used on links that should look like buttons
 export const btn = (variant: Variant = "primary", size: Size = "sm", extra?: string) =>
   cx(
     "press inline-flex items-center justify-center font-medium whitespace-nowrap cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
@@ -100,7 +102,7 @@ export function ButtonLink({
   return <Link className={btn(variant, size, cx("no-underline", className))} {...props} />;
 }
 
-/* ─── Interruptor ───────────────────────────────────────────── */
+// Toggle switch
 
 export function Switch({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) {
   return (
@@ -123,7 +125,7 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: () => v
   );
 }
 
-/* ─── Control segmentado con indicador deslizante ───────────── */
+// Segmented control with a sliding highlight
 
 export interface SegOption<T extends string> {
   value: T;
@@ -149,7 +151,9 @@ export function Segmented<T extends string>({
   role?: "group" | "tablist";
   full?: boolean;
 }) {
+  // Unique layoutId so each control animates its own highlight
   const id = useId();
+  const isTabs = role === "tablist";
   return (
     <div
       role={role}
@@ -163,9 +167,9 @@ export function Segmented<T extends string>({
           <button
             key={o.value}
             type="button"
-            role={role === "tablist" ? "tab" : undefined}
-            aria-selected={role === "tablist" ? on : undefined}
-            aria-pressed={role === "group" ? on : undefined}
+            role={isTabs ? "tab" : undefined}
+            aria-selected={isTabs ? on : undefined}
+            aria-pressed={isTabs ? undefined : on}
             onClick={() => onChange(o.value)}
             className={cx(
               "relative inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border-none bg-transparent font-medium whitespace-nowrap transition-colors duration-150",
@@ -193,7 +197,7 @@ export function Segmented<T extends string>({
   );
 }
 
-/* ─── Productos ─────────────────────────────────────────────── */
+// Products
 
 const PRODUCT_ICONS: Record<ProductIcon, Icon> = {
   headphones: IconHeadphones,
@@ -213,7 +217,7 @@ const PRODUCT_ICONS: Record<ProductIcon, Icon> = {
   wind: IconWind,
 };
 
-/** Miniatura del producto: su foto sobre blanco o, si no tiene, un icono. */
+// Product photo on a white square, or an icon if there's no photo
 export function ProductThumb({
   icon,
   image,
@@ -236,7 +240,7 @@ export function ProductThumb({
           alt=""
           fill
           sizes={`${size}px`}
-          // Las fotos de las tiendas (cuentas reales) se cargan tal cual: pueden venir de cualquier dominio
+          // Store photos (real accounts) can come from any domain, so skip the optimizer
           unoptimized={image.startsWith("http")}
           className="object-contain p-[6%]"
         />
@@ -255,16 +259,32 @@ export function ProductThumb({
   );
 }
 
-/** Pastilla de variación de precio: verde si baja, roja si sube. */
+type Trend = "flat" | "down" | "up";
+
+// Very small changes count as flat
+function trendOf(ch: number): Trend {
+  if (Math.abs(ch) < 0.05) return "flat";
+  return ch < 0 ? "down" : "up";
+}
+
+const TREND_ICON: Record<Trend, Icon> = { flat: IconMinus, down: IconTrendingDown, up: IconTrendingUp };
+const TREND_CLASS: Record<Trend, string> = {
+  flat: "bg-surface-3 text-text-2",
+  down: "bg-down-soft text-down",
+  up: "bg-up-soft text-up",
+};
+const TREND_COLOR: Record<Trend, string> = { flat: "var(--text-2)", down: "var(--down)", up: "var(--up)" };
+
+// Price change pill: green when it goes down, red when it goes up
 export function ChangeBadge({ ch, size = "md" }: { ch: number; size?: "sm" | "md" }) {
-  const flat = Math.abs(ch) < 0.05;
-  const Ic = flat ? IconMinus : ch < 0 ? IconTrendingDown : IconTrendingUp;
+  const trend = trendOf(ch);
+  const Ic = TREND_ICON[trend];
   return (
     <span
       className={cx(
         "inline-flex items-center gap-0.5 rounded px-[5px] font-semibold whitespace-nowrap",
         size === "sm" ? "h-[18px] text-[11px]" : "h-5 text-xs",
-        flat ? "bg-surface-3 text-text-2" : ch < 0 ? "bg-down-soft text-down" : "bg-up-soft text-up",
+        TREND_CLASS[trend],
       )}
     >
       <Ic size={12} aria-hidden />
@@ -274,18 +294,21 @@ export function ChangeBadge({ ch, size = "md" }: { ch: number; size?: "sm" | "md
 }
 
 export function changeColor(ch: number) {
-  return Math.abs(ch) < 0.05 ? "var(--text-2)" : ch < 0 ? "var(--down)" : "var(--up)";
+  return TREND_COLOR[trendOf(ch)];
 }
 
-/** Minigráfica de los últimos 8 días. */
+// Tiny line chart of the last few days. Drawn in a 60x22 box and scaled with viewBox.
 export function Sparkline({ values, color, w = 60, h = 22, strokeWidth = 1.5 }: { values: number[]; color: string; w?: number; h?: number; strokeWidth?: number }) {
-  // Con un solo precio (producto recién añadido) se dibuja una línea plana
+  // With a single price (just added product) draw a flat line
   const vals = values.length > 1 ? values : [values[0] ?? 0, values[0] ?? 0];
   const mn = Math.min(...vals);
   const mx = Math.max(...vals);
-  const d = vals
-    .map((v, i) => (i ? "L" : "M") + (1 + (i * 58) / (vals.length - 1)).toFixed(1) + " " + (mx === mn ? 11 : 3 + ((mx - v) / (mx - mn)) * 16).toFixed(1))
-    .join(" ");
+
+  const xAt = (i: number) => 1 + (i * 58) / (vals.length - 1);
+  // Highest price at y=3, lowest at y=19; flat line in the middle
+  const yAt = (v: number) => (mx === mn ? 11 : 3 + ((mx - v) / (mx - mn)) * 16);
+
+  const d = vals.map((v, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`).join(" ");
   return (
     <svg width={w} height={h} viewBox="0 0 60 22" aria-hidden>
       <path d={d} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
@@ -293,7 +316,7 @@ export function Sparkline({ values, color, w = 60, h = 22, strokeWidth = 1.5 }: 
   );
 }
 
-/* ─── Varios ────────────────────────────────────────────────── */
+// Misc
 
 export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return <div className={cx("skeleton rounded", className)} style={style} />;
@@ -307,13 +330,13 @@ export function Card({ className, children, ...rest }: ComponentProps<"section">
   );
 }
 
-/** Aplica la animación de entrada escalonada: <div {...enter(2)}> */
+// Staggered entrance animation, e.g. <div {...enter(2)}>
 export const enter = (i: number, className?: string) => ({
   className: cx("enter", className),
   style: { "--i": i } as React.CSSProperties,
 });
 
-/** Logo grande con resplandor, para los estados vacíos. */
+// Big glowing logo for empty states
 export function EmptyMark() {
   return (
     <div className="mb-1.5 rounded-[14px] shadow-[0_10px_30px_-8px_var(--glow)]">
@@ -322,7 +345,7 @@ export function EmptyMark() {
   );
 }
 
-/** Barra de progreso que se llena al aparecer. */
+// Progress bar that fills up when it appears (value from 0 to 1)
 export function ProgressBar({ value, delay = 0 }: { value: number; delay?: number }) {
   return (
     <span className="block h-1 w-full overflow-hidden rounded-sm bg-surface-3">
@@ -337,10 +360,8 @@ export function ProgressBar({ value, delay = 0 }: { value: number; delay?: numbe
   );
 }
 
-/**
- * Número que cuenta desde 0 hasta su valor al aparecer (y entre valores al cambiar).
- * Se escribe directamente en el DOM: no provoca renders de React en cada fotograma.
- */
+// Number that counts up from 0 (and animates between values when it changes).
+// It writes straight to the DOM so React doesn't re-render on every frame.
 export function CountUp({ value, format = (n) => String(Math.round(n)), duration = 0.9 }: { value: number; format?: (n: number) => string; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const from = useRef(0);
@@ -366,6 +387,6 @@ export function CountUp({ value, format = (n) => String(Math.round(n)), duration
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, reduce]);
 
-  // El contenido inicial no cambia nunca: así React no pisa el texto mientras se anima
+  // The rendered text never changes, so React won't overwrite the animated value
   return <span ref={ref}>{format(0)}</span>;
 }

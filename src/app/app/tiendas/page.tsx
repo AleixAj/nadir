@@ -13,18 +13,25 @@ const FREQ_LABEL: Record<Freq, string> = { "15m": "cada 15 minutos", "1h": "cada
 
 type StoreRow = Store & { errMsg?: string; ids?: string[] };
 
-/** Cuenta real: una fila por tienda, a partir de los productos que sigues. */
+/** Real account: one row per store, built from the followed products. */
 function storesFromProducts(products: Product[]): StoreRow[] {
-  const map = new Map<string, Product[]>();
-  for (const p of products) map.set(p.store, [...(map.get(p.store) ?? []), p]);
-  return [...map.entries()]
+  // Group products by store name
+  const byStore = new Map<string, Product[]>();
+  for (const p of products) {
+    const list = byStore.get(p.store) ?? [];
+    list.push(p);
+    byStore.set(p.store, list);
+  }
+  return [...byStore.entries()]
     .map(([name, list]) => {
       const failing = list.filter((p) => p.lastError);
       const recent = Math.min(...list.map((p) => p.checked));
       let domain = "";
       try {
         domain = new URL(list[0].url ?? "").hostname.replace(/^www\./, "");
-      } catch {}
+      } catch {
+        // No valid URL, leave the domain empty
+      }
       return {
         name,
         domain,
@@ -52,6 +59,7 @@ export default function TiendasPage() {
     : STORES.map((s) => ({ ...s, errMsg: "La tienda no responde (tiempo de espera agotado tras 30 s). Volveremos a intentarlo automáticamente en 10 min." }));
   const ok = stores.filter((s) => !s.error).length;
 
+  // Real account: re-check the failing products. Demo: just show a toast.
   const retry = async (s: StoreRow) => {
     setRetrying(s.name);
     if (isAccount && s.ids?.length) {

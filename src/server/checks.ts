@@ -8,10 +8,8 @@ import { nextSimulatedPrice } from "./simulation";
 
 type ProductRecord = typeof product.$inferSelect;
 
-/**
- * Revisa el precio de un producto: lee su página, guarda el precio y,
- * si ha bajado del objetivo, registra un aviso.
- */
+// Checks a product's price: reads its page, saves the price and
+// creates an alert if it dropped below the target.
 export async function checkProduct(p: ProductRecord): Promise<{ ok: boolean; priceCents?: number; error?: string }> {
   if (p.catalogId) return checkSimulated(p);
   const res = await fetchProduct(p.url);
@@ -42,10 +40,8 @@ export async function checkProduct(p: ProductRecord): Promise<{ ok: boolean; pri
   return { ok: true, priceCents };
 }
 
-/**
- * Producto del catálogo de prueba: no se lee la tienda, el precio evoluciona de forma
- * simulada a partir de su precio real en el catálogo.
- */
+// Sample catalog products don't hit the store. The price is simulated
+// starting from its real catalog price.
 async function checkSimulated(p: ProductRecord) {
   const now = new Date();
   const [prev] = await db
@@ -58,6 +54,7 @@ async function checkSimulated(p: ProductRecord) {
     .select({ cents: min(catalogOffer.priceCents) })
     .from(catalogOffer)
     .where(eq(catalogOffer.productId, p.catalogId!));
+  // Cheapest catalog price, or the last saved price if the catalog has none
   const baseCents = base?.cents ?? prev?.priceCents;
   if (!baseCents) return { ok: false, error: "Producto sin precio en el catálogo." };
 

@@ -15,6 +15,13 @@
       "when": 1790279774989,
       "tag": "0001_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790281674865,
+      "tag": "0002_offer_shipping",
+      "breakpoints": true
     }
   ]
 }

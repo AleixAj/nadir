@@ -4,9 +4,10 @@ import { LogoMark } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Email de alerta" };
 
-// Vista previa del email que se envía cuando un precio baja del objetivo.
-// Más adelante se generará con React Email y se enviará con Resend.
+// Preview of the email sent when a price drops below the target.
+// Later this will be built with React Email and sent with Resend.
 export default function EmailAlertaPage() {
+  // Shared class for the "other stores" table cells
   const td = "border-t border-border py-2";
   return (
     <div className="min-h-screen bg-surface-2 px-3 py-8">

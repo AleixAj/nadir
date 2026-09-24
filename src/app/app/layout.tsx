@@ -6,11 +6,11 @@ import { getAccountData } from "@/server/account";
 
 export const metadata: Metadata = { title: "Panel" };
 
-// Carga los datos de la cuenta en cada visita (nunca durante el build)
+// Load account data on every request (never at build time)
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  // Con sesión, los datos reales llegan ya cargados desde el servidor; sin ella, demo.
+  // Logged in: real data comes preloaded from the server. Logged out: demo mode.
   const session = await getSession();
   const account = session ? await getAccountData(session.user).catch(() => null) : null;
 

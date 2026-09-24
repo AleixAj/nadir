@@ -56,8 +56,47 @@ export default function FichaPage() {
       </div>
     );
   }
-  // key: al cambiar de producto se reinicia el estado del formulario de alerta
+  // The key resets the alert form state when switching products
   return <Ficha key={product.id} p={product} loading={loading} />;
+}
+
+// Column widths for the desktop store comparison table
+const OFFER_COLS = "grid-cols-[minmax(170px,1.2fr)_88px_minmax(150px,1.5fr)_104px_96px_32px]";
+const RANGE_KEYS: RangeKey[] = ["7D", "1M", "3M", "1A"];
+
+// "7D" becomes "7 D" for the range buttons
+const rangeButtonLabel = (key: RangeKey) => key.replace(/(\d)/, "$1 ");
+
+// "229.5" becomes "229,5" for the price input
+const toInputPrice = (value: number) => String(value).replace(".", ",");
+
+function shippingLabel(shipCents: number | null) {
+  if (shipCents === 0) return "Envío gratis";
+  if (shipCents) return `Envío ${eur(shipCents / 100)}`;
+  return "Consulta el envío en la tienda";
+}
+
+// Demo: several sample stores. Real account: the stores we got real offers from,
+// or just the store of the URL being followed.
+function buildOffers(p: Product, isAccount: boolean): RankedOffer[] {
+  if (!isAccount) return rankOffers(shopsFor(p));
+
+  if (p.offers?.length) {
+    return rankOffers(
+      p.offers.map((o) => ({
+        name: o.store,
+        price: o.price,
+        // Ranked by final price, so add shipping when we know it
+        ship: (o.shipCents ?? 0) / 100,
+        shipL: shippingLabel(o.shipCents),
+        eta: "—",
+        url: o.url,
+      })),
+    );
+  }
+
+  if (p.lastError) return [{ name: p.store, error: true, best: false }];
+  return [{ name: p.store, price: p.cur, ship: 0, total: p.cur, shipL: "Consulta el envío en la tienda", eta: "—", best: true }];
 }
 
 function Ficha({ p, loading }: { p: Product; loading: boolean }) {
@@ -73,11 +112,11 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
 
   const [range, setRange] = useState<RangeKey>("3M");
   const [alertOn, setAlertOn] = useState<boolean>(storedOn ?? false);
-  const [target, setTarget] = useState(String(p.target ?? Math.round(p.cur * 0.9)).replace(".", ","));
+  const [target, setTarget] = useState(toInputPrice(p.target ?? Math.round(p.cur * 0.9)));
   const [stats, setStats] = useState<Chart["stats"] | null>(null);
   const onStats = useCallback((s: Chart["stats"]) => setStats(s), []);
 
-  // Si la alerta cambia en el store (p. ej. al recuperar la demo guardada), sincroniza el interruptor
+  // If the alert changes in the store (e.g. when the saved demo loads), sync the switch
   const [seenOn, setSeenOn] = useState(storedOn);
   if (seenOn !== storedOn) {
     setSeenOn(storedOn);
@@ -86,26 +125,29 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
 
   const tn = parsePrice(target);
   const valid = !isNaN(tn) && tn > 0;
+  // How much the price still has to drop to reach the target
   const diff = valid ? r2(p.cur - tn) : 0;
-  // Demo: varias tiendas de ejemplo. Cuenta real: la tienda de la URL que sigues
-  const offers: RankedOffer[] = isAccount && p.offers?.length
-    ? rankOffers(
-        p.offers.map((o) => ({
-          name: o.store,
-          price: o.price,
-          ship: 0,
-          shipL: o.shipping ?? "Consulta el envío en la tienda",
-          eta: "—",
-          url: o.url,
-        })),
-      )
-    : isAccount
-    ? [
-        p.lastError
-          ? { name: p.store, error: true, best: false }
-          : { name: p.store, price: p.cur, ship: 0, total: p.cur, shipL: "Consulta el envío en la tienda", eta: "—", best: true },
-      ]
-    : rankOffers(shopsFor(p));
+  const offers = buildOffers(p, isAccount);
+
+  let targetStatus = "Objetivo alcanzado";
+  if (!alertOn) targetStatus = "Alerta pausada";
+  else if (diff > 0) targetStatus = "Faltan " + eurS(diff);
+
+  // Hint under the target input, and its colour
+  let targetHint = "Está por encima del precio actual: te avisaremos en la próxima revisión";
+  let targetHintColor = "var(--warn)";
+  if (!valid) {
+    targetHint = "Introduce un precio válido";
+    targetHintColor = "var(--up)";
+  } else if (diff > 0) {
+    targetHint = `${eurS(diff)} menos que ahora (−${pct1((diff / p.cur) * 100)} %)`;
+    targetHintColor = "var(--text-2)";
+  }
+
+  const retryStore = (name: string) => {
+    if (isAccount) checkNow(p.id);
+    else showToast(`Reintentando revisión de ${name}…`);
+  };
 
   return (
     <>
@@ -141,7 +183,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
 
       <div className="grid grid-cols-1 items-start gap-5 wide:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-5">
-          {/* Precio e histórico */}
+          {/* Price and history */}
           <Card aria-label="Precio e histórico" {...enter(1, "rounded-xl")}>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-6 gap-y-4 p-5">
               <div className="flex min-w-[190px] flex-col gap-1">
@@ -167,9 +209,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
               <div className="flex flex-col gap-1 pt-0.5">
                 <span className="text-xs font-medium text-text-2">Tu objetivo</span>
                 <span className="text-xl font-semibold tracking-[-0.02em]">{valid ? eurS(tn) : "—"}</span>
-                <span className="text-xs text-text-3">
-                  {!alertOn ? "Alerta pausada" : diff > 0 ? "Faltan " + eurS(diff) : "Objetivo alcanzado"}
-                </span>
+                <span className="text-xs text-text-3">{targetStatus}</span>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 pt-3.5">
@@ -192,7 +232,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                 size="sm"
                 value={range}
                 onChange={setRange}
-                options={(["7D", "1M", "3M", "1A"] as RangeKey[]).map((k) => ({ value: k, label: k.replace(/(\d)/, "$1 ") }))}
+                options={RANGE_KEYS.map((key) => ({ value: key, label: rangeButtonLabel(key) }))}
               />
             </div>
             <div className="px-4 pt-3 pb-3.5">
@@ -204,7 +244,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             </div>
           </Card>
 
-          {/* Comparativa de tiendas */}
+          {/* Store comparison */}
           <Card aria-labelledby="cmp-title" {...enter(2, "overflow-hidden rounded-xl")}>
             <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-4 py-3.5">
               <h2 id="cmp-title" className="m-0 text-sm font-semibold">
@@ -214,7 +254,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             </div>
             <div className="hidden overflow-x-auto desk:block">
               <div className="min-w-[700px]">
-                <div className="grid h-[34px] grid-cols-[minmax(170px,1.2fr)_88px_minmax(150px,1.5fr)_104px_96px_32px] items-center gap-3 bg-surface-2 px-4 text-xs font-medium text-text-3">
+                <div className={cx("grid h-[34px] items-center gap-3 bg-surface-2 px-4 text-xs font-medium text-text-3", OFFER_COLS)}>
                   <span>Tienda</span>
                   <span className="text-right">Precio</span>
                   <span>Envío o recogida</span>
@@ -230,7 +270,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                         <IconAlertCircle size={15} aria-hidden />
                         {isAccount ? p.lastError : "No disponible. No hemos podido revisar esta tienda desde las 09:12."}
                       </span>
-                      <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => (isAccount ? checkNow(p.id) : showToast(`Reintentando revisión de ${s.name}…`))}>
+                      <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => retryStore(s.name)}>
                         Reintentar
                       </Button>
                     </div>
@@ -238,7 +278,8 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                     <div
                       key={s.name}
                       className={cx(
-                        "grid min-h-12 grid-cols-[minmax(170px,1.2fr)_88px_minmax(150px,1.5fr)_104px_96px_32px] items-center gap-3 border-t border-border px-4 text-[13px]",
+                        "grid min-h-12 items-center gap-3 border-t border-border px-4 text-[13px]",
+                        OFFER_COLS,
                         s.best && "bg-brand-soft",
                       )}
                     >
@@ -293,7 +334,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          {/* Alerta de precio */}
+          {/* Price alert */}
           <Card aria-labelledby="alert-title" {...enter(3, "rounded-xl")}>
             <div className="flex items-center gap-3 border-b border-border px-4 py-3.5">
               <div className="flex flex-1 flex-col">
@@ -325,14 +366,11 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                   />
                   <span className="text-base font-medium text-text-3">€</span>
                 </div>
-                <span className="text-[13px]" style={{ color: !valid ? "var(--up)" : diff > 0 ? "var(--text-2)" : "var(--warn)" }}>
-                  {!valid
-                    ? "Introduce un precio válido"
-                    : diff > 0
-                      ? `${eurS(diff)} menos que ahora (−${pct1((diff / p.cur) * 100)} %)`
-                      : "Está por encima del precio actual: te avisaremos en la próxima revisión"}
+                <span className="text-[13px]" style={{ color: targetHintColor }}>
+                  {targetHint}
                 </span>
               </div>
+              {/* Quick target presets */}
               <div className="flex flex-wrap gap-1.5">
                 {(
                   [
@@ -344,7 +382,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                   <button
                     key={label}
                     type="button"
-                    onClick={() => setTarget(String(v).replace(".", ","))}
+                    onClick={() => setTarget(toInputPrice(v))}
                     className="press h-[26px] cursor-pointer rounded-full border border-border bg-surface-2 px-[9px] text-xs font-medium whitespace-nowrap text-text-2 hover:border-border-strong hover:text-text"
                   >
                     {label}
@@ -397,7 +435,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             </fieldset>
           </Card>
 
-          {/* Resumen del periodo */}
+          {/* Stats for the selected range */}
           <Card aria-label="Estadísticas del periodo" {...enter(4, "flex flex-col gap-2.5 rounded-xl px-4 py-3.5")}>
             <h2 className="m-0 text-sm font-semibold">Resumen · {RANGES[range].label}</h2>
             {stats &&
@@ -442,7 +480,7 @@ function BestTag() {
   );
 }
 
-/** Enlace a la página del producto en la tienda (en la demo no lleva a ningún sitio). */
+/** Link to the product in the store. In the demo it goes nowhere. */
 function StoreLink({
   p,
   href,
@@ -470,7 +508,7 @@ function StoreLink({
   );
 }
 
-/** Menú "···" de la ficha: revisar el precio ahora o dejar de seguir el producto. */
+/** "..." menu: check the price now or stop following the product. */
 function ProductMenu({ p }: { p: Product }) {
   const router = useRouter();
   const checkNow = useDemo((s) => s.checkNow);
@@ -480,13 +518,15 @@ function ProductMenu({ p }: { p: Product }) {
   const [busy, setBusy] = useState<"" | "check" | "delete">("");
   const ref = useRef<HTMLDivElement>(null);
 
-  // Cierra al hacer clic fuera o pulsar Escape
+  // Close on outside click or Escape
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -494,6 +534,11 @@ function ProductMenu({ p }: { p: Product }) {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  // Delete needs two clicks: the first one asks for confirmation
+  let deleteLabel = "Dejar de seguir";
+  if (busy === "delete") deleteLabel = "Borrando…";
+  else if (confirm) deleteLabel = "Pulsa otra vez para confirmar";
 
   const item = "flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-surface-2 disabled:cursor-wait disabled:opacity-60";
 
@@ -544,7 +589,10 @@ function ProductMenu({ p }: { p: Product }) {
               disabled={!!busy}
               className={cx(item, "text-up")}
               onClick={async () => {
-                if (!confirm) return setConfirm(true);
+                if (!confirm) {
+                  setConfirm(true);
+                  return;
+                }
                 setBusy("delete");
                 const ok = await deleteProduct(p.id);
                 setBusy("");
@@ -552,7 +600,7 @@ function ProductMenu({ p }: { p: Product }) {
               }}
             >
               <IconTrash size={16} aria-hidden />
-              {busy === "delete" ? "Borrando…" : confirm ? "Pulsa otra vez para confirmar" : "Dejar de seguir"}
+              {deleteLabel}
             </button>
           </motion.div>
         )}

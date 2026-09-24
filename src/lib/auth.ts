@@ -17,41 +17,39 @@ function createAuth() {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID ?? "",
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-        // Deja elegir cuenta aunque ya haya una sesión de Google abierta
+        // Let the user pick an account even if they are already logged into Google
         prompt: "select_account",
       },
     },
     user: {
-      // Permite borrar la cuenta desde Ajustes (sus productos se borran en cascada)
+      // Allows deleting the account from Settings (products are deleted in cascade)
       deleteUser: { enabled: true },
     },
     session: {
-      // La sesión se guarda también en una cookie firmada: menos consultas a la base de datos
+      // Also keep the session in a signed cookie, so fewer database queries
       cookieCache: { enabled: true, maxAge: 5 * 60 },
     },
     advanced: {
-      // Detrás de Cloudflare, la IP real del visitante llega en esta cabecera
+      // Behind Cloudflare the real visitor IP comes in this header
       ipAddress: { ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"] },
     },
-    // nextCookies permite que las Server Actions escriban cookies de sesión
+    // nextCookies lets Server Actions set session cookies
     plugins: [nextCookies()],
   });
 }
 
 let instance: ReturnType<typeof createAuth> | null = null;
 
-/**
- * Se crea en la primera petición y no al importar el módulo: en Cloudflare Workers
- * las claves secretas solo están disponibles mientras se atiende una petición.
- */
+// Created on the first request, not on import: on Cloudflare Workers
+// secrets are only available while handling a request.
 export function getAuth() {
   instance ??= createAuth();
   return instance;
 }
 
-/** Sesión actual (o null) desde un Server Component, Server Action o Route Handler. */
+// Current session (or null). Works in Server Components, Server Actions and Route Handlers
 export async function getSession() {
-  // Leer las cabeceras primero hace que la página se genere en cada visita, nunca en el build
+  // Reading headers first makes the page render on every request, never at build time
   const h = await headers();
   if (!process.env.DATABASE_URL) return null;
   try {

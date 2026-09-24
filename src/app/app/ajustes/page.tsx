@@ -33,7 +33,7 @@ export default function AjustesPage() {
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email);
 
-  // Al recuperar la demo guardada, rellena el formulario
+  // Refill the form when the saved demo profile loads
   const [seen, setSeen] = useState(profile);
   if (seen !== profile) {
     setSeen(profile);
@@ -64,31 +64,32 @@ export default function AjustesPage() {
           </Card>
         ) : (
           <Card {...enter(1)}>
-          <div className="border-b border-border p-4">
-            <h2 className="m-0 text-sm font-semibold">Perfil</h2>
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setProfile({ name: name.trim() || profile.name, email: email.trim() || profile.email });
-            }}
-          >
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 p-4">
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
-                Nombre
-                <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
-                Email
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
-              </label>
+            <div className="border-b border-border p-4">
+              <h2 className="m-0 text-sm font-semibold">Perfil</h2>
             </div>
-            <div className="flex items-center justify-between gap-3 rounded-b-[10px] border-t border-border bg-surface-2 px-4 py-3">
-              <span className="text-xs text-text-3">Plan gratuito · hasta 25 productos</span>
-              <Button type="submit">Guardar cambios</Button>
-            </div>
-          </form>
-        </Card>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                // Empty fields keep the previous value
+                setProfile({ name: name.trim() || profile.name, email: email.trim() || profile.email });
+              }}
+            >
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 p-4">
+                <label className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
+                  Nombre
+                  <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+                </label>
+                <label className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
+                  Email
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+                </label>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-b-[10px] border-t border-border bg-surface-2 px-4 py-3">
+                <span className="text-xs text-text-3">Plan gratuito · hasta 25 productos</span>
+                <Button type="submit">Guardar cambios</Button>
+              </div>
+            </form>
+          </Card>
         )}
 
         <Card {...enter(2)}>
@@ -134,7 +135,10 @@ export default function AjustesPage() {
                   role="radio"
                   aria-checked={on}
                   aria-disabled={o.pro}
-                  onClick={() => !o.pro && setFreq(o.value)}
+                  onClick={() => {
+                    // The 15 min option is only shown as a Pro upsell
+                    if (!o.pro) setFreq(o.value);
+                  }}
                   className={cx(
                     "press flex items-start gap-2.5 rounded-lg border p-3 text-left",
                     on ? "border-brand-solid bg-brand-soft" : "border-border bg-surface",
@@ -217,7 +221,7 @@ function SignOutButton() {
       onClick={async () => {
         setBusy(true);
         await authClient.signOut();
-        // Recarga completa a propósito: limpia el estado de la cuenta en memoria
+        // Full reload on purpose, to clear the account state in memory
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/";
       }}
@@ -228,11 +232,16 @@ function SignOutButton() {
   );
 }
 
-/** Borrado en dos pasos: el primer clic pide confirmación. */
+// Two-step delete: the first click asks for confirmation
 function DeleteAccountButton() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const showToast = useDemo((s) => s.showToast);
+
+  let label = "Eliminar cuenta";
+  if (busy) label = "Borrando…";
+  else if (confirm) label = "Sí, borrar mi cuenta";
+
   return (
     <div className="flex items-center gap-2">
       {confirm && !busy && (
@@ -245,7 +254,10 @@ function DeleteAccountButton() {
         disabled={busy}
         className={cx(confirm && "border-up bg-up-soft text-up hover:bg-up-soft")}
         onClick={async () => {
-          if (!confirm) return setConfirm(true);
+          if (!confirm) {
+            setConfirm(true);
+            return;
+          }
           setBusy(true);
           const { error } = await authClient.deleteUser();
           if (error) {
@@ -259,7 +271,7 @@ function DeleteAccountButton() {
         }}
       >
         <IconTrash size={15} aria-hidden />
-        {busy ? "Borrando…" : confirm ? "Sí, borrar mi cuenta" : "Eliminar cuenta"}
+        {label}
       </Button>
     </div>
   );

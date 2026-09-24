@@ -6,11 +6,20 @@ export type Theme = "light" | "dark";
 const KEY = "nadir-theme";
 
 /**
- * Se ejecuta en <head> antes de pintar, para que no parpadee el tema equivocado.
- * Prioridad: ?theme= en la URL (lo usa la vista previa de la landing) → localStorage → oscuro.
+ * Inline script that runs in <head> before the first paint, so the wrong theme never flashes.
+ * Order: ?theme= in the URL (used by the landing preview), then localStorage, then dark.
  */
-export const themeScript = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=q||localStorage.getItem('${KEY}')||'dark';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})()`;
+export const themeScript = `(function () {
+  var root = document.documentElement;
+  try {
+    var fromUrl = new URLSearchParams(location.search).get('theme');
+    root.setAttribute('data-theme', fromUrl || localStorage.getItem('${KEY}') || 'dark');
+  } catch (e) {
+    root.setAttribute('data-theme', 'dark');
+  }
+})()`;
 
+// Components using useTheme() re-render when these listeners are called
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void) {
@@ -25,7 +34,7 @@ export function useTheme() {
 
   const setTheme = useCallback((t: Theme) => {
     const root = document.documentElement;
-    // Transición de color solo durante el cambio de tema
+    // Enable colour transitions only while switching themes
     root.classList.add("theme-transition");
     root.setAttribute("data-theme", t);
     try {

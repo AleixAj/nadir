@@ -3,12 +3,12 @@ import { db } from "@/db";
 import { product, userSettings } from "@/db/schema";
 import { checkProduct } from "@/server/checks";
 
-// Revisión automática de precios. La llama una tarea programada con:
+// Automatic price check. A scheduled job calls it with:
 //   Authorization: Bearer <CRON_SECRET>
-// Revisa los productos que "tocan" según la frecuencia de cada usuario.
+// It checks the products that are due, based on each user's frequency.
 
-const BATCH = 40;
-const PARALLEL = 5;
+const BATCH = 40; // max products per run
+const PARALLEL = 5; // checks running at the same time
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const now = Date.now();
-  // Frecuencia del usuario (24 h si no la ha cambiado) → umbral de "última revisión"
+  // User frequency in hours (24 if they never changed it)
   const hours = sql<number>`case coalesce(${userSettings.freq}, '24h') when '1h' then 1 when '6h' then 6 else 24 end`;
   const due = await db
     .select({ p: product })
@@ -26,6 +26,7 @@ export async function GET(req: Request) {
     .where(
       or(
         isNull(product.lastCheckedAt),
+        // Last checked more than `hours` ago (5 min of slack so runs that fire a bit early still count)
         lt(product.lastCheckedAt, sql`now() - (${hours} * interval '1 hour') + interval '5 minutes'`),
       ),
     )
@@ -34,17 +35,20 @@ export async function GET(req: Request) {
 
   let ok = 0;
   const failed: { id: string; error?: string }[] = [];
-  // Varios a la vez, en grupos de PARALLEL. Solo se hace una pausa si alguno del grupo
-  // ha leído una tienda de verdad, para no saturarlas (los del catálogo de prueba no salen a la red)
+  // Check PARALLEL products at a time. Only pause if the group hit a real store,
+  // so we don't flood them (sample catalog products don't use the network)
   for (let i = 0; i < due.length; i += PARALLEL) {
     const group = due.slice(i, i + PARALLEL).map((d) => d.p);
     const results = await Promise.all(group.map((p) => checkProduct(p)));
-    results.forEach((r, k) => (r.ok ? ok++ : failed.push({ id: group[k].id, error: r.error })));
+    results.forEach((r, k) => {
+      if (r.ok) ok++;
+      else failed.push({ id: group[k].id, error: r.error });
+    });
     if (group.some((p) => !p.catalogId)) await new Promise((res) => setTimeout(res, 500));
   }
 
   return Response.json({ checked: due.length, ok, failed, ms: Date.now() - now });
 }
 
-// Evita que Next.js intente prerenderizar esta ruta
+// Don't let Next.js prerender this route
 export const dynamic = "force-dynamic";

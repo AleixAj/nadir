@@ -6,7 +6,22 @@ import { buildChart, RANGES, type RangeKey } from "@/lib/chart";
 import { ago, eur, eurS, fdl, r2 } from "@/lib/format";
 import type { Product } from "@/lib/demo-data";
 
-/** Gráfica del histórico: línea escalonada, precio objetivo, punto "nadir" y tooltip. */
+// Moves each x-axis label so it lines up with its tick
+const TICK_SHIFT = {
+  start: "none",
+  middle: "translateX(-50%)",
+  end: "translateX(-100%)",
+};
+
+// Tooltip line comparing the hovered price with the target price
+function targetDiffText(diff: number) {
+  if (diff > 0) return eur(diff) + " por encima del objetivo";
+  if (diff === 0) return "Justo en tu objetivo";
+  return eur(-diff) + " por debajo del objetivo";
+}
+
+// Price history chart: stepped line, target line, lowest price point and a hover tooltip
+
 export function PriceChart({
   product,
   range,
@@ -24,6 +39,7 @@ export function PriceChart({
   const [width, setWidth] = useState(720);
   const [hover, setHover] = useState<number | null>(null);
 
+  // Redraw at the real width of the container
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -54,17 +70,23 @@ export function PriceChart({
     onStats?.(c.stats);
   }, [c.stats, onStats]);
 
-  // Etiqueta del nadir: a la derecha del punto, o a la izquierda si no cabe
+  // Lowest price label: right of the point, or left if it doesn't fit.
+  // The width is a rough guess from the number of characters.
   const labelW = c.nadir.label.length * 6.2 + 18;
   let nLeft = c.nadir.x + 14;
   if (nLeft + labelW > c.W) nLeft = c.nadir.x - 14 - labelW;
   nLeft = Math.max(c.padL, nLeft);
 
+  // Hovered point (the index can be stale after changing the range)
   const h = hover != null && hover < c.len ? hover : null;
   const hx = h != null ? c.X(h) : 0;
   const hy = h != null ? c.Y(c.data[h]) : 0;
   const hv = h != null ? c.data[h] : 0;
   const diff = target != null ? r2(hv - target) : 0;
+
+  // Tooltip goes right of the cursor, or left if it would overflow; clamped vertically
+  const tooltipLeft = hx + 186 > c.W ? hx - 186 : hx + 14;
+  const tooltipTop = Math.max(0, Math.min(hy - 40, c.H - 130));
 
   return (
     <div ref={ref} className="relative w-full select-none" style={{ height: c.H }}>
@@ -83,7 +105,7 @@ export function PriceChart({
         style={{ touchAction: "pan-y" }}
       >
         <path d={c.grid} fill="none" stroke="var(--grid)" strokeWidth={1} />
-        {/* key={range}: al cambiar de periodo, la línea se vuelve a dibujar */}
+        {/* key={range} replays the draw animation when the range changes */}
         <g key={range}>
           <path d={c.area} fill="var(--chart-fill)" className="fade-in" />
           <path
@@ -94,7 +116,6 @@ export function PriceChart({
             strokeWidth={2}
             strokeLinejoin="round"
             className="draw"
-            // Un leve resplandor naranja alrededor de la línea
             style={{ filter: "drop-shadow(0 0 6px var(--glow))" }}
           />
         </g>
@@ -111,6 +132,7 @@ export function PriceChart({
           />
         )}
         <line x1={hx} x2={hx} y1={c.padT} y2={c.bottom} stroke="var(--border-strong)" strokeWidth={1} opacity={h != null ? 1 : 0} />
+        {/* Lowest price point: pulse, soft halo and the dot itself */}
         <circle cx={c.nadir.x} cy={c.nadir.y} r={10} fill="var(--brand)" className="nadir-pulse" />
         <circle cx={c.nadir.x} cy={c.nadir.y} r={10} fill="var(--brand)" opacity={0.14} />
         <circle cx={c.nadir.x} cy={c.nadir.y} r={4.5} fill="var(--brand)" stroke="var(--surface)" strokeWidth={2} />
@@ -130,10 +152,7 @@ export function PriceChart({
         <span
           key={k}
           className="pointer-events-none absolute bottom-0 text-[11px] whitespace-nowrap text-text-3"
-          style={{
-            left: t.x,
-            transform: t.align === "start" ? "none" : t.align === "end" ? "translateX(-100%)" : "translateX(-50%)",
-          }}
+          style={{ left: t.x, transform: TICK_SHIFT[t.align] }}
         >
           {t.label}
         </span>
@@ -165,14 +184,14 @@ export function PriceChart({
             exit={{ opacity: 0, transition: { duration: 0.1 } }}
             transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
             className="pointer-events-none absolute z-[2] flex w-[172px] flex-col gap-[3px] rounded-lg border border-border bg-surface px-3 py-2.5 shadow-md"
-            style={{ left: hx + 186 > c.W ? hx - 186 : hx + 14, top: Math.max(0, Math.min(hy - 40, c.H - 130)) }}
+            style={{ left: tooltipLeft, top: tooltipTop }}
           >
             <span className="text-[11px] text-text-3">{fdl(ago(c.len - 1 - h, endIso ? new Date(endIso) : undefined))}</span>
             <span className="text-[15px] font-semibold tracking-[-0.01em]">{eur(hv)}</span>
             <span className="text-xs text-text-2">en {product.store}</span>
             {target != null && (
               <span className="mt-1 border-t border-border pt-1.5 text-xs" style={{ color: diff > 0 ? "var(--text-2)" : "var(--down)" }}>
-                {diff > 0 ? eur(diff) + " por encima del objetivo" : diff === 0 ? "Justo en tu objetivo" : eur(-diff) + " por debajo del objetivo"}
+                {targetDiffText(diff)}
               </span>
             )}
           </motion.div>

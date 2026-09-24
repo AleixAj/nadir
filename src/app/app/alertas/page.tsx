@@ -18,13 +18,15 @@ export default function AlertasPage() {
   const toggleAlert = useDemo((s) => s.toggleAlert);
   const [tab, setTab] = useState<Tab>("activas");
 
-  // Alertas configuradas (con precio objetivo) que aún no se han cumplido
-  const rows = products.filter((p) => p.target && p.alert !== "alcanzado").sort((a, b) => distanceToTarget(a) - distanceToTarget(b));
+  // Alerts with a target price that haven't been reached yet, closest first
+  const rows = products
+    .filter((p) => p.target && p.alert !== "alcanzado")
+    .sort((a, b) => distanceToTarget(a) - distanceToTarget(b));
   const activeCount = rows.filter((p) => alerts[p.id]).length;
   const byId = Object.fromEntries(products.map((p) => [p.id, p]));
   const isAccount = useIsAccount();
   const accountHistory = useDemo((s) => s.history);
-  // Mismo formato para los avisos de ejemplo y los reales
+  // Same shape for sample and real sent alerts
   const history = isAccount
     ? accountHistory.map((h) => ({ key: String(h.id), name: h.name, txt: h.txt, date: h.date, time: h.time, channels: h.channels }))
     : SENT_ALERTS.filter((h) => byId[h.id]).map((h) => ({

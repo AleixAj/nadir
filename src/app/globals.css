@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Tema: data-theme en <html>. Oscuro por defecto (como en el diseño). */
+/* Theme is set with data-theme on <html>. Dark is the default. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root,
@@ -56,7 +56,7 @@
   --text-2: #b8b1ab;
   --text-3: #948c86;
   --brand: #f97316;
-  /* Naranja algo más profundo para que el texto blanco se lea bien (contraste AA) */
+  /* Slightly darker orange so white text passes AA contrast */
   --brand-solid: #c2410c;
   --brand-solid-hover: #d9500b;
   --on-brand: #ffffff;
@@ -124,7 +124,7 @@
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* Puntos de corte del diseño: móvil < 820 px, ficha a dos columnas ≥ 1180 px */
+  /* Breakpoints: mobile below 820px, two-column product page from 1180px */
   --breakpoint-desk: 820px;
   --breakpoint-wide: 1180px;
 }
@@ -146,7 +146,7 @@
     font-feature-settings: "cv11";
   }
 
-  /* Cambio de tema suave, solo en colores */
+  /* Smooth colour fade, only while the theme is changing */
   body,
   body * {
     transition-property: background-color, border-color, color, fill, stroke, box-shadow, transform, opacity;
@@ -165,7 +165,7 @@
     color: inherit;
   }
 
-  /* Detalles nativos del navegador con los colores de la marca */
+  /* Native browser details in brand colours */
   :root {
     accent-color: var(--brand-solid);
     caret-color: var(--brand);
@@ -175,7 +175,7 @@
     color: var(--text);
   }
 
-  /* Barras de scroll: naranja sobre oscuro (o sobre blanco en el tema claro) */
+  /* Orange scrollbars */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -194,7 +194,7 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
-  /* Firefox no tiene los selectores de arriba: usa la propiedad estándar */
+  /* Firefox doesn't support the selectors above, so use the standard property */
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-width: thin;
@@ -209,7 +209,7 @@
 }
 
 @layer components {
-  /* Todo lo que se pulsa responde al pulsarlo */
+  /* Small shrink when a clickable element is pressed */
   .press {
     transition: transform 160ms var(--ease-out-strong), background-color 150ms ease, border-color 150ms ease,
       color 150ms ease, box-shadow 150ms ease;
@@ -218,7 +218,7 @@
     transform: scale(0.97);
   }
 
-  /* Esqueleto de carga: un brillo recorre la forma (más fino que un parpadeo) */
+  /* Loading skeleton with a moving shine */
   .skeleton {
     background: linear-gradient(
         100deg,
@@ -249,7 +249,7 @@
     }
   }
 
-  /* Entrada escalonada del contenido de cada pantalla */
+  /* Staggered entrance; set --i on each element for its delay */
   .enter {
     animation: enter 360ms var(--ease-out-strong) both;
     animation-delay: calc(var(--i, 0) * 45ms);
@@ -261,7 +261,7 @@
     }
   }
 
-  /* Dibujo de la línea de la gráfica */
+  /* Draws the chart line (needs pathLength=1 on the path) */
   .draw {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
@@ -287,12 +287,14 @@
     }
   }
 
+  /* Pulsing ring around the lowest price point */
   .nadir-pulse {
     transform-box: fill-box;
     transform-origin: center;
     animation: nadirPulse 2.4s ease-out 900ms infinite;
   }
-  /* ─── Botón principal: degradado, relieve, brillo al pasar y resplandor ─── */
+
+  /* Primary button: gradient, bevel, shine on hover and glow */
   .btn-glow {
     position: relative;
     isolation: isolate;
@@ -317,7 +319,7 @@
     pointer-events: none;
   }
 
-  /* ─── Tarjetas que se pueden pulsar: suben y el borde se vuelve naranja ─── */
+  /* Clickable cards: lift up and get an orange border on hover */
   .lift {
     transition:
       transform 220ms var(--ease-out-strong),
@@ -326,7 +328,7 @@
       background-color 200ms ease;
   }
 
-  /* ─── Filas: barra naranja a la izquierda al pasar el ratón ─── */
+  /* Rows: orange bar on the left on hover */
   .row-accent {
     position: relative;
   }
@@ -343,7 +345,7 @@
     transition: transform 220ms var(--ease-out-strong);
   }
 
-  /* ─── Enlace con subrayado que se dibuja de izquierda a derecha ─── */
+  /* Link underline that grows from left to right */
   .link-anim {
     background-image: linear-gradient(currentColor, currentColor);
     background-size: 0% 1px;
@@ -353,22 +355,22 @@
     text-decoration: none !important;
   }
 
-  /* ─── Icono que se desplaza al pasar sobre su botón (flechas) ─── */
+  /* Arrow icon that moves a bit when its parent .group is hovered */
   .nudge {
     transition: transform 220ms var(--ease-out-strong);
   }
 
-  /* ─── Logo: pequeño giro al pasar el ratón ─── */
+  /* Logo: small tilt on hover */
   .logo-tilt img {
     transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  /* ─── Superficies con un leve degradado de arriba abajo ─── */
+  /* Surfaces with a faint top-to-bottom gradient */
   .surface-grad {
     background-image: linear-gradient(180deg, color-mix(in oklab, var(--text) 2.5%, transparent), transparent 40%);
   }
 
-  /* ─── Texto con degradado blanco → naranja ─── */
+  /* Text with a white to orange gradient */
   .text-grad {
     background: linear-gradient(95deg, var(--text) 10%, var(--brand) 60%, #fdba74 100%);
     -webkit-background-clip: text;
@@ -376,7 +378,7 @@
     color: transparent;
   }
 
-  /* Los efectos de hover solo con ratón (en móvil el "hover" se queda pegado) */
+  /* Hover effects only for mouse users (on touch screens hover gets stuck) */
   @media (hover: hover) and (pointer: fine) {
     .btn-glow:hover:not(:disabled) {
       box-shadow:
@@ -423,6 +425,7 @@
   }
 }
 
+/* Turn off motion for users who ask for less of it */
 @media (prefers-reduced-motion: reduce) {
   .enter,
   .draw,

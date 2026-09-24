@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-// Permite instalar Nadir como app (PWA) en el móvil o el escritorio
+// Lets users install Nadir as an app (PWA) on mobile or desktop
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Nadir · Monitor de precios",

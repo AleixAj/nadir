@@ -21,7 +21,13 @@ import { eur, eurS } from "@/lib/format";
 import { alertBadge, sortProducts, type SortKey } from "@/lib/insights";
 import { useDemo, useProducts, type ListFilter } from "@/lib/store";
 
+// Shared column widths for the desktop table header, rows and skeletons
 const COLS = "grid-cols-[minmax(240px,1fr)_108px_150px_124px_112px_164px]";
+const LISTS: ListFilter[] = ["Todas", "Tecnología", "Hogar"];
+
+function inList(product: Product, list: ListFilter) {
+  return list === "Todas" || product.list === list;
+}
 
 export default function ProductosPage() {
   const [retrying, setRetrying] = useState(false);
@@ -39,15 +45,14 @@ export default function ProductosPage() {
   const errored = loadState === "error" && !loading;
   const empty = products.length === 0;
 
-  const q = search.trim().toLowerCase();
-  const rows = sortProducts(
-    products.filter((x) => (filter === "Todas" || x.list === filter) && (!q || x.name.toLowerCase().includes(q))),
-    sort,
-  );
-  const count = (l: ListFilter) => products.filter((x) => l === "Todas" || x.list === l).length;
+  // Filter by list and search text, then sort
+  const query = search.trim().toLowerCase();
+  const matches = products.filter((p) => inList(p, filter) && (!query || p.name.toLowerCase().includes(query)));
+  const rows = sortProducts(matches, sort);
+  const countIn = (list: ListFilter) => products.filter((p) => inList(p, list)).length;
   const ready = !loading && !errored && !empty;
 
-  // "Reintentar": vuelve a cargar un momento y muestra los datos
+  // "Retry": show the loading state for a moment, then the data
   const retry = () => {
     setLoadState("normal");
     setRetrying(true);
@@ -77,7 +82,7 @@ export default function ProductosPage() {
           label="Filtrar por lista"
           value={filter}
           onChange={setFilter}
-          options={(["Todas", "Tecnología", "Hogar"] as ListFilter[]).map((l) => ({ value: l, label: l, count: count(l) }))}
+          options={LISTS.map((list) => ({ value: list, label: list, count: countIn(list) }))}
         />
         <div className="flex-1" />
         <label className="inline-flex items-center gap-2 text-[13px] text-text-2">
@@ -126,7 +131,7 @@ export default function ProductosPage() {
         </div>
       )}
 
-      {/* Escritorio: tabla */}
+      {/* Desktop: table */}
       {!errored && !empty && (
         <div {...enter(2, "hidden overflow-x-auto rounded-[10px] border border-border bg-surface shadow-sm desk:block")}>
           <div role="table" aria-label="Mis productos" className="min-w-[920px]">
@@ -149,7 +154,7 @@ export default function ProductosPage() {
         </div>
       )}
 
-      {/* Móvil: lista */}
+      {/* Mobile: list */}
       {!errored && !empty && (
         <div {...enter(2, "overflow-hidden rounded-[10px] border border-border bg-surface desk:hidden")}>
           {loading &&
@@ -193,10 +198,13 @@ export default function ProductosPage() {
   );
 }
 
+/** Clickable table row (also works with Enter / Space). */
 function ProductRow({ p, i }: { p: Product; i: number }) {
   const router = useRouter();
   const on = useDemo((s) => s.alerts[p.id]);
   const open = () => router.push(`/app/productos/${p.id}`);
+  // Stagger the entry animation, capped so long lists don't wait too much
+  const delay = Math.min(i, 10) * 25;
   return (
     <div
       role="row"
@@ -209,7 +217,7 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
         }
       }}
       className={cx("row-accent grid cursor-pointer items-center gap-4 border-t border-border px-4 py-2.5 transition-colors hover:bg-surface-2", COLS)}
-      style={{ animation: `enter 320ms var(--ease-out-strong) ${Math.min(i, 10) * 25}ms both` }}
+      style={{ animation: `enter 320ms var(--ease-out-strong) ${delay}ms both` }}
     >
       <div role="cell" className="flex min-w-0 items-center gap-3">
         <ProductThumb icon={p.icon} image={p.image} size={44} />
@@ -241,18 +249,19 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
   );
 }
 
+/** Alert status pill: reached, active, paused or none. */
 function AlertPill({ p, on }: { p: Product; on: boolean | undefined }) {
-  const b = alertBadge(p, on);
-  const cfg = {
-    alcanzado: { label: "Objetivo alcanzado", cls: "bg-down-soft text-down", Ic: IconCircleCheck },
-    activa: { label: "Activa · " + (p.target ? eurS(p.target) : ""), cls: "bg-brand-soft text-brand-text", Ic: IconBell },
-    pausada: { label: "Pausada", cls: "bg-surface-3 text-text-2", Ic: IconPlayerPause },
-    none: { label: "Sin alerta", cls: "bg-transparent text-text-3", Ic: IconBellOff },
-  }[b];
+  const status = alertBadge(p, on);
+  const pill = {
+    alcanzado: { label: "Objetivo alcanzado", className: "bg-down-soft text-down", Icon: IconCircleCheck },
+    activa: { label: "Activa · " + (p.target ? eurS(p.target) : ""), className: "bg-brand-soft text-brand-text", Icon: IconBell },
+    pausada: { label: "Pausada", className: "bg-surface-3 text-text-2", Icon: IconPlayerPause },
+    none: { label: "Sin alerta", className: "bg-transparent text-text-3", Icon: IconBellOff },
+  }[status];
   return (
-    <span className={cx("inline-flex h-[22px] items-center gap-[5px] rounded-full px-2 text-xs font-medium whitespace-nowrap", cfg.cls)}>
-      <cfg.Ic size={13} aria-hidden />
-      {cfg.label}
+    <span className={cx("inline-flex h-[22px] items-center gap-[5px] rounded-full px-2 text-xs font-medium whitespace-nowrap", pill.className)}>
+      <pill.Icon size={13} aria-hidden />
+      {pill.label}
     </span>
   );
 }

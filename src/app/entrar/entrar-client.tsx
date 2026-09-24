@@ -8,7 +8,7 @@ import { IconAlertCircle, IconLoader2, IconPlayerPlay } from "@tabler/icons-reac
 import { btn, Logo } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
-/** Logo oficial de Google ("G" de cuatro colores), como piden sus normas de marca. */
+/** Official four-colour Google "G", as required by their brand guidelines. */
 function GoogleG() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
@@ -24,12 +24,14 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
   const params = useSearchParams();
   const registro = params.get("modo") === "registro";
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(params.get("error") ? "No se ha podido iniciar sesión con Google. Inténtalo de nuevo." : "");
+  // "?error=1" means Google sent the user back after a failed login
+  const initialError = params.get("error") ? "No se ha podido iniciar sesión con Google. Inténtalo de nuevo." : "";
+  const [error, setError] = useState(initialError);
 
   const signIn = async () => {
     setError("");
     setLoading(true);
-    // Redirige a Google; al volver, Better Auth crea la sesión y nos lleva al panel
+    // Redirects to Google; on return Better Auth creates the session and opens the dashboard
     const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/app",

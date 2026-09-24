@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_offer" ADD COLUMN "shipping_cents" integer;

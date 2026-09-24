@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dailySeries, productFromRows, crossedTarget } from "../history";
 import { checkPublicUrl, parsePriceToCents, parseProductPage, storeName } from "../product-page";
 
-describe("precios escritos de cualquier forma", () => {
+describe("parsePriceToCents", () => {
   it.each([
     ["1.299,00 €", 129900],
     ["1,299.00", 129900],
@@ -12,20 +12,20 @@ describe("precios escritos de cualquier forma", () => {
     ["1.299", 129900],
     [379, 37900],
     ["€ 45,5", 4550],
-  ])("%s → %i céntimos", (input, cents) => {
+  ])("%s is %i cents", (input, cents) => {
     expect(parsePriceToCents(input)).toBe(cents);
   });
-  it("rechaza lo que no es un precio", () => {
+  it("rejects values that are not a price", () => {
     expect(parsePriceToCents("gratis")).toBeNull();
     expect(parsePriceToCents(0)).toBeNull();
     expect(parsePriceToCents(null)).toBeNull();
   });
 });
 
-describe("lectura de la página de un producto", () => {
+describe("parseProductPage", () => {
   const url = "https://www.tienda.es/p/auriculares";
 
-  it("usa los datos estructurados (JSON-LD) si existen", () => {
+  it("uses structured data (JSON-LD) when present", () => {
     const html = `<html><head>
       <script type="application/ld+json">{"@context":"https://schema.org","@graph":[
         {"@type":"BreadcrumbList"},
@@ -41,13 +41,13 @@ describe("lectura de la página de un producto", () => {
     });
   });
 
-  it("elige la oferta más barata cuando hay varias", () => {
+  it("picks the cheapest offer when there are several", () => {
     const html = `<script type="application/ld+json">{"@type":"Product","name":"Teclado",
       "offers":[{"price":119},{"price":"109,90"},{"lowPrice":"115"}]}</script>`;
     expect(parseProductPage(html, url)?.priceCents).toBe(10990);
   });
 
-  it("si no hay JSON-LD, usa las etiquetas Open Graph", () => {
+  it("falls back to Open Graph tags without JSON-LD", () => {
     const html = `<head>
       <meta content="Logitech MX Keys S" property="og:title" />
       <meta property="og:image" content="https://cdn.tienda.es/mx.jpg">
@@ -62,19 +62,19 @@ describe("lectura de la página de un producto", () => {
     });
   });
 
-  it("devuelve null si no encuentra el precio", () => {
+  it("returns null when there is no price", () => {
     expect(parseProductPage("<title>Portada</title>", url)).toBeNull();
   });
 
-  it("ignora bloques JSON-LD mal formados", () => {
+  it("ignores broken JSON-LD blocks", () => {
     const html = `<script type="application/ld+json">{roto</script>
       <script type="application/ld+json">{"@type":["Product","Thing"],"name":"Tablet","offers":{"price":329}}</script>`;
     expect(parseProductPage(html, url)?.name).toBe("Tablet");
   });
 });
 
-describe("seguridad de la URL", () => {
-  it.each(["https://www.pccomponentes.com/producto", "http://tienda.es/p/1"])("acepta %s", (u) => {
+describe("checkPublicUrl", () => {
+  it.each(["https://www.pccomponentes.com/producto", "http://tienda.es/p/1"])("allows %s", (u) => {
     expect(checkPublicUrl(u).ok).toBe(true);
   });
   it.each([
@@ -88,23 +88,23 @@ describe("seguridad de la URL", () => {
     "https://usuario:clave@tienda.es/p",
     "http://intranet/",
     "no es una url",
-  ])("bloquea %s", (u) => {
+  ])("blocks %s", (u) => {
     expect(checkPublicUrl(u).ok).toBe(false);
   });
 });
 
-describe("nombre de la tienda", () => {
-  it("reconoce las tiendas conocidas y deduce el resto", () => {
+describe("storeName", () => {
+  it("recognizes known stores and guesses the rest", () => {
     expect(storeName("https://www.elcorteingles.es/electronica/x")).toBe("El Corte Inglés");
     expect(storeName("https://tienda.amazon.es/dp/1")).toBe("Amazon");
     expect(storeName("https://www.mitienda.com/p")).toBe("Mitienda");
   });
 });
 
-describe("histórico real", () => {
+describe("price history from saved rows", () => {
   const d = (s: string) => new Date(s + "T10:00:00Z");
 
-  it("rellena los días sin lectura con el precio anterior", () => {
+  it("fills days without readings with the previous price", () => {
     const s = dailySeries(
       [
         { priceCents: 10000, checkedAt: d("2026-09-01") },
@@ -115,7 +115,7 @@ describe("histórico real", () => {
     expect(s).toEqual([100, 100, 90, 90, 90]);
   });
 
-  it("si un día hay varias lecturas, se queda la última", () => {
+  it("keeps the last reading when a day has several", () => {
     const s = dailySeries(
       [
         { priceCents: 10000, checkedAt: new Date("2026-09-01T08:00:00Z") },
@@ -126,7 +126,7 @@ describe("histórico real", () => {
     expect(s).toEqual([95]);
   });
 
-  it("convierte las filas en un producto con mínimo, variación y estado de alerta", () => {
+  it("builds a product with min price, 7 day change and alert status", () => {
     const now = d("2026-09-10");
     const points = [
       { priceCents: 40000, checkedAt: d("2026-09-01") },
@@ -152,12 +152,12 @@ describe("histórico real", () => {
     );
     expect(p.cur).toBe(379);
     expect(p.min).toBe(350);
-    expect(p.prev7).toBe(400); // hace 7 días (3 sep) costaba 400 €
+    expect(p.prev7).toBe(400); // 7 days ago (Sep 3) it cost 400
     expect(p.alert).toBe("activa");
     expect(p.series).toHaveLength(10);
   });
 
-  it("solo avisa al cruzar el objetivo, no en cada revisión", () => {
+  it("only alerts when crossing the target, not on every check", () => {
     expect(crossedTarget(400, 350, 360, true)).toBe(true);
     expect(crossedTarget(350, 340, 360, true)).toBe(false);
     expect(crossedTarget(null, 350, 360, true)).toBe(true);

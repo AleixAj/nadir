@@ -11,6 +11,9 @@ import { FEATURED_ID } from "@/lib/demo-data";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 
+const NAV_LINK =
+  "rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-brand-text";
+
 const FEATURES = [
   {
     icon: IconBuildingStore,
@@ -31,6 +34,7 @@ const FEATURES = [
 
 export default function Landing() {
   const reduce = useReducedMotion();
+  // Hero items fade in one after another (only fade if the user prefers reduced motion)
   const hero: Variants = {
     hidden: {},
     show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
@@ -42,7 +46,7 @@ export default function Landing() {
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-clip bg-bg text-text">
-      {/* Fondo: cuadrícula muy tenue que se desvanece + resplandor naranja arriba */}
+      {/* Background: faint fading grid plus an orange glow at the top */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[900px]"
@@ -65,10 +69,10 @@ export default function Landing() {
             <Logo size={24} text={17} />
           </Link>
           <nav className="hidden gap-1 desk:flex">
-            <a href="#ventajas" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-brand-text">
+            <a href="#ventajas" className={NAV_LINK}>
               Cómo funciona
             </a>
-            <Link href="/email/alerta" className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-2 transition-colors hover:bg-surface-3 hover:text-brand-text">
+            <Link href="/email/alerta" className={NAV_LINK}>
               Avisos
             </Link>
           </nav>
@@ -179,7 +183,7 @@ export default function Landing() {
   );
 }
 
-/** Con sesión: acceso directo al panel. Sin sesión: entrar y demo. */
+/** Logged in: link to the dashboard. Logged out: sign in and demo buttons. */
 function HeaderActions() {
   const { data: session } = authClient.useSession();
   if (session) {
@@ -201,7 +205,7 @@ function HeaderActions() {
   );
 }
 
-/** Curva decorativa detrás del titular: se dibuja y marca su punto más bajo. */
+/** Decorative curve behind the headline, drawn in on load. */
 function HeroCurve() {
   return (
     <svg
@@ -230,13 +234,13 @@ function HeroCurve() {
   );
 }
 
-/** La ficha real de la app, a escala y sin interacción, dentro de un marco. */
+/** The real product page, scaled down and non-interactive, inside a frame. */
 function AppPreview() {
   const { theme } = useTheme();
   const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(1100);
+  const [width, setWidth] = useState(1100);
   const [mobile, setMobile] = useState(false);
-  // El iframe solo se crea en el cliente, para que use el tema real y no el del servidor
+  // Only render the iframe on the client so it gets the real theme, not the server one
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -247,23 +251,27 @@ function AppPreview() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => {
-      setW(Math.round(e.contentRect.width));
+    // Track the frame width so the iframe can be scaled to fit
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(Math.round(entry.contentRect.width));
       setMobile(window.innerWidth < 820);
     });
-    ro.observe(el);
-    return () => ro.disconnect();
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const IW = mobile ? 390 : 1280;
-  const IH = mobile ? 1100 : 800;
-  const scale = w / IW;
+  // The iframe renders at a fixed "device" size and is scaled down with CSS
+  const frameWidth = mobile ? 390 : 1280;
+  const frameHeight = mobile ? 1100 : 800;
+  const scale = width / frameWidth;
+  // On mobile only the top part of the page is shown
+  const visibleRatio = mobile ? 0.62 : 1;
 
   return (
     <div
       ref={ref}
       className="relative w-full overflow-hidden rounded-[10px] border border-border bg-surface shadow-lg"
-      style={{ height: Math.round(IH * scale * (mobile ? 0.62 : 1)) }}
+      style={{ height: Math.round(frameHeight * scale * visibleRatio) }}
     >
       {src && (
         <iframe
@@ -273,7 +281,7 @@ function AppPreview() {
           tabIndex={-1}
           loading="lazy"
           className="pointer-events-none absolute top-0 left-0 border-0"
-          style={{ width: IW, height: IH, transform: `scale(${scale})`, transformOrigin: "0 0" }}
+          style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})`, transformOrigin: "0 0" }}
         />
       )}
     </div>

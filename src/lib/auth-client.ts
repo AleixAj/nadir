@@ -1,4 +1,4 @@
 import { createAuthClient } from "better-auth/react";
 
-// Sin baseURL usa el mismo dominio en el que se sirve la app
+// No baseURL, so it uses the same domain the app runs on
 export const authClient = createAuthClient();

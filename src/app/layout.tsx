@@ -38,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" data-theme="dark" className={inter.variable} suppressHydrationWarning>
       <head>
+        {/* Applies the saved theme before the page paints, so there is no flash */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-screen font-sans">{children}</body>

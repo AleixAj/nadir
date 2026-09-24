@@ -46,11 +46,12 @@ The name comes from *nadir*, the lowest point of a curve. It is a portfolio proj
 
 Large stores (Amazon, PcComponentes, MediaMarkt…) don't allow their pages to be read automatically; in production the data would come from their **affiliate programs** (official catalogs with daily prices). To simulate that honestly:
 
-1. `scripts/seed-catalog.ts` runs 58 Google Shopping Spain searches **once**, through the SerpApi API.
-2. It keeps products from **well-known retailers and official brand stores**, drops accessories and outlier prices (monthly instalments), and groups offers for the same product across stores.
-3. Photos are downloaded, cropped and converted to WebP (`public/catalog/`), and everything is stored in Postgres.
+1. `scripts/seed-catalog.ts` runs 63 Google Shopping Spain searches **once** (SerpApi API) and keeps products from **well-known retailers and official brand stores**, without accessories or outlier prices.
+2. To add more stores, it searches each product by name (Serper API) and only accepts results that are **exactly the same model**: it won't mix an iPhone 17 with a 17 Pro, different storage sizes or refurbished units.
+3. Only **trusted** stores get in: well-known chains or highly rated shops with many reviews; never marketplaces, second-hand sites or carriers. Prices far from the rest are dropped and duplicate products are merged.
+4. Products left with a single store are removed (no comparison, no value). Photos are converted to WebP (`public/catalog/`) and everything is stored in Postgres.
 
-The result is **more than 600 real products**, mostly tech. When you track one, its price starts from the real one and **evolves in a simulated way** on every automatic check, with small changes and occasional deals. The site always says so, with a “test environment” notice and a “simulated price” label.
+The result is **347 real products, all with prices from 2 or more stores** (almost 1,500 prices), mostly tech. The comparison on the product page is sorted by final price, shipping included. When you track a product, its price starts from the real one and **evolves in a simulated way** on every automatic check, with small changes and occasional deals. The site always says so, with a “test environment” notice and a “simulated price” label.
 
 ## Tech stack
 
@@ -138,7 +139,7 @@ npm install
 npm run dev
 ```
 
-The demo works with no setup. For real accounts: copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`. Loading the test catalog also needs a SerpApi key and `npm run catalog:seed`.
+The demo works with no setup. For real accounts: copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`. Loading the test catalog also needs SerpApi and Serper keys and `npm run catalog:seed` (searches are cached and never repeated).
 
 ## Scripts
 

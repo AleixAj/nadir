@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-/** Cabeceras de seguridad para todas las respuestas. */
+/** Security headers sent with every response. */
 const securityHeaders = [
-  // Nadie puede meter la web en un iframe salvo ella misma (la landing enseña la app así)
+  // Only our own site can embed us in an iframe (the landing page shows the app that way)
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -17,13 +17,13 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   images: {
-    // Las fotos de la demo ya están optimizadas (WebP) y las de las tiendas se sirven tal cual.
-    // En Cloudflare, el optimizador de Next.js necesitaría el servicio de pago Cloudflare Images.
+    // Demo images are already optimized WebP and store images are served as they are.
+    // On Cloudflare, the Next.js optimizer would need the paid Cloudflare Images service.
     unoptimized: true,
   },
 };
 
 export default nextConfig;
 
-// Da acceso a los bindings de Cloudflare durante `next dev`
+// Gives access to Cloudflare bindings during `next dev`
 initOpenNextCloudflareForDev();
