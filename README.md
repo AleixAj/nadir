@@ -21,17 +21,18 @@
 
 **Compra en el punto más bajo.** Nadir es un monitor de precios: sigue los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del precio que tú eliges.
 
-El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de portfolio construido como un producto SaaS real: diseño propio con sistema de tokens, cuentas con Google, base de datos, tareas programadas, lógica de dominio probada y desplegado en producción.
+El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de portfolio construido como un producto SaaS real: diseño propio con sistema de tokens, cuentas con Google o email, base de datos, tareas programadas, lógica de dominio probada y desplegado en producción.
 
 > **Web:** [nadir.aleixaj.com](https://nadir.aleixaj.com)
 > **Demo sin registro:** pulsa «Entrar como demo» y entrarás en una cuenta que ya sigue 12 productos, con alertas e histórico de un año.
-> **Cuenta real:** entra con Google, busca cualquier producto del catálogo y empieza a seguir su precio.
+> **Cuenta real:** entra con Google o crea una cuenta con tu email, busca cualquier producto del catálogo y empieza a seguir su precio.
 
 ## Qué puedes hacer
 
 - **Panel** con las bajadas de la semana, alertas activas, últimas bajadas y productos cerca de su precio objetivo.
 - **Buscar y añadir productos por nombre**, con sugerencias y fotos mientras escribes y navegación con el teclado. También se puede pegar el enlace de una tienda.
 - **Mis productos**: tabla con minigráfica de 7 días, mínimo histórico, mejor tienda y estado de la alerta. Filtros por lista, búsqueda y cuatro formas de ordenar.
+- **Listas propias**: crea, renombra, cambia el color o borra tus listas y mueve cada producto a la que quieras.
 - **Ficha de producto**, la pantalla principal:
   - gráfica del histórico dibujada en SVG, con periodos de 7 días, 1 mes, 3 meses y 1 año, tooltip, línea del precio objetivo y el punto *nadir* marcado;
   - comparativa de tiendas ordenada por precio final, con la opción «Mejor» destacada;
@@ -39,7 +40,7 @@ El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de p
   - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir».
 - **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados.
 - **Tiendas**: estado de cada tienda, última revisión y reintento si falla.
-- **Ajustes**: cuenta de Google, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
+- **Ajustes**: perfil (nombre y foto, que puedes subir desde tu ordenador), cambio de contraseña, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
 - **Instalable como app** (PWA) en el móvil o el escritorio.
 
 ## Catálogo de prueba
@@ -64,7 +65,7 @@ El resultado son **347 productos reales, todos con precio en 2 tiendas o más** 
 | Estado | Zustand 5 | Un único estado con dos modos: demo (en `localStorage`) y cuenta real (sincronizado con el servidor). |
 | Animación | Motion 13 + CSS | Motion para lo interactivo (modal, toasts, indicadores); CSS para lo predecible (entradas, brillos, dibujo de la gráfica). |
 | Base de datos | Neon (Postgres) + Drizzle ORM | Postgres sin servidor, consultas tipadas y migraciones versionadas. |
-| Login | Better Auth + Google | Sesiones guardadas en nuestra base de datos, sin contraseñas. |
+| Login | Better Auth | Google o email y contraseña (cifrada). Sesiones guardadas en nuestra base de datos. |
 | Servidor | Server Actions + Zod | Cada acción comprueba la sesión, la propiedad del dato y valida la entrada. |
 | Tests | Vitest | Tests unitarios de la lógica de precios, gráfica, lectura de páginas, seguridad de URLs y catálogo. |
 | Despliegue | Cloudflare Workers (OpenNext) | Despliegue continuo desde GitHub y un Cron Trigger que revisa los precios. |
@@ -76,7 +77,7 @@ El resultado son **347 productos reales, todos con precio en 2 tiendas o más** 
  Navegador ────► │ Next.js (OpenNext)                                                 │
                  │  ├─ Páginas y layouts (Server Components)                          │
                  │  ├─ Server Actions  ── Zod ──► Drizzle ──► Neon Postgres (UE)     │
-                 │  ├─ /api/auth/*  Better Auth + Google                              │
+                 │  ├─ /api/auth/*  Better Auth (Google y email)                      │
                  │  └─ /api/cron/check  ◄── Cron Trigger (con clave)                  │
                  └────────────────────────────────────────────────────────────────────┘
 ```
@@ -115,7 +116,7 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 src/
 ├── app/
 │   ├── page.tsx              # Landing
-│   ├── entrar/               # Acceso con Google o demo
+│   ├── entrar/               # Acceso con Google, email o demo
 │   ├── app/                  # La aplicación (panel, productos, ficha, alertas, tiendas, ajustes)
 │   ├── api/auth/             # Better Auth
 │   ├── api/cron/check/       # Revisión automática de precios
@@ -158,7 +159,7 @@ npm run deploy        # despliega en Cloudflare Workers
 ## Hoja de ruta
 
 - [x] **Base y MVP**: diseño, todas las pantallas, demo sin registro, estados de carga, vacío y error.
-- [x] **Cuentas reales**: Google, base de datos, datos por usuario, borrado de cuenta.
+- [x] **Cuentas reales**: Google o email, perfil con foto, base de datos, datos por usuario, borrado de cuenta.
 - [x] **Motor de precios**: lectura de páginas, catálogo de prueba, histórico, revisión programada y avisos en la app.
 - [x] **Despliegue** en [nadir.aleixaj.com](https://nadir.aleixaj.com) con despliegue continuo.
 - [ ] **Avisos por email** con React Email + Resend y, después, Telegram.

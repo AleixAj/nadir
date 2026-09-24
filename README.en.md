@@ -21,17 +21,18 @@
 
 **Buy at the lowest point.** Nadir is a price tracker: it follows the products you care about across several stores, keeps their price history and alerts you when they drop below the price you choose.
 
-The name comes from *nadir*, the lowest point of a curve. It is a portfolio project built like a real SaaS product: custom design with a token system, Google accounts, a database, scheduled jobs, tested domain logic, and deployed to production.
+The name comes from *nadir*, the lowest point of a curve. It is a portfolio project built like a real SaaS product: custom design with a token system, Google or email accounts, a database, scheduled jobs, tested domain logic, and deployed to production.
 
 > **Website:** [nadir.aleixaj.com](https://nadir.aleixaj.com) (the interface is in Spanish)
 > **No-signup demo:** click “Entrar como demo” to open an account that already tracks 12 products, with alerts and a one-year history.
-> **Real account:** sign in with Google, search any product in the catalog and start tracking its price.
+> **Real account:** sign in with Google or create an account with your email, search any product in the catalog and start tracking its price.
 
 ## What you can do
 
 - **Dashboard** with this week's drops, active alerts, latest price drops and products close to their target price.
 - **Search and add products by name**, with suggestions and photos as you type and keyboard navigation. You can also paste a store link.
 - **My products**: a table with a 7-day sparkline, all-time low, best store and alert status. List filters, search and four sort orders.
+- **Your own lists**: create, rename, recolour or delete lists and move each product to the one you want.
 - **Product page**, the main screen:
   - price history chart drawn in SVG, with 7-day, 1-month, 3-month and 1-year periods, a tooltip, the target price line and the *nadir* point highlighted;
   - store comparison sorted by final price, with the best option highlighted;
@@ -39,7 +40,7 @@ The name comes from *nadir*, the lowest point of a curve. It is a portfolio proj
   - period summary, “Check price now” and “Stop tracking”.
 - **Alerts**: active alerts with progress towards the target, plus a history of generated notifications.
 - **Stores**: status of each store, last check and retry on failure.
-- **Settings**: Google account, channels, check frequency, theme, sign out and delete the account with all its data.
+- **Settings**: profile (name and a photo you can upload from your computer), password change, channels, check frequency, theme, sign out and delete the account with all its data.
 - **Installable as an app** (PWA) on mobile or desktop.
 
 ## Test catalog
@@ -64,7 +65,7 @@ The result is **347 real products, all with prices from 2 or more stores** (almo
 | State | Zustand 5 | A single store with two modes: demo (in `localStorage`) and real account (synced with the server). |
 | Animation | Motion 13 + CSS | Motion for interactive parts (dialog, toasts, indicators); CSS for predictable ones (enter animations, shine, chart drawing). |
 | Database | Neon (Postgres) + Drizzle ORM | Serverless Postgres, typed queries and versioned migrations. |
-| Auth | Better Auth + Google | Sessions stored in our own database, no passwords. |
+| Auth | Better Auth | Google or email and password (hashed). Sessions stored in our own database. |
 | Server | Server Actions + Zod | Every action checks the session and data ownership, and validates input. |
 | Tests | Vitest | Unit tests for pricing logic, chart, page parsing, URL safety and the catalog. |
 | Deployment | Cloudflare Workers (OpenNext) | Continuous deployment from GitHub and a Cron Trigger that checks prices. |
@@ -76,7 +77,7 @@ The result is **347 real products, all with prices from 2 or more stores** (almo
  Browser ──────► │ Next.js (OpenNext)                                                 │
                  │  ├─ Pages and layouts (Server Components)                          │
                  │  ├─ Server Actions  ── Zod ──► Drizzle ──► Neon Postgres (EU)     │
-                 │  ├─ /api/auth/*  Better Auth + Google                              │
+                 │  ├─ /api/auth/*  Better Auth (Google and email)                    │
                  │  └─ /api/cron/check  ◄── Cron Trigger (with a secret)              │
                  └────────────────────────────────────────────────────────────────────┘
 ```
@@ -115,7 +116,7 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 src/
 ├── app/
 │   ├── page.tsx              # Landing page
-│   ├── entrar/               # Sign in with Google or demo
+│   ├── entrar/               # Sign in with Google, email or demo
 │   ├── app/                  # The app (dashboard, products, product page, alerts, stores, settings)
 │   ├── api/auth/             # Better Auth
 │   ├── api/cron/check/       # Automatic price checks
@@ -158,7 +159,7 @@ npm run deploy        # deploy to Cloudflare Workers
 ## Roadmap
 
 - [x] **Foundation and MVP**: design, every screen, no-signup demo, loading, empty and error states.
-- [x] **Real accounts**: Google, database, per-user data, account deletion.
+- [x] **Real accounts**: Google or email, profile with photo, database, per-user data, account deletion.
 - [x] **Price engine**: page parsing, test catalog, history, scheduled checks and in-app alerts.
 - [x] **Deployment** at [nadir.aleixaj.com](https://nadir.aleixaj.com) with continuous deployment.
 - [ ] **Email alerts** with React Email + Resend, then Telegram.

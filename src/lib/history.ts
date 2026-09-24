@@ -1,6 +1,6 @@
 // Turns saved rows (prices in cents with a date) into the Product shape
 // the UI uses, the same one as the demo. Pure functions, easy to test.
-import type { AlertStatus, ListName, Product, ProductIcon } from "./demo-data";
+import type { AlertStatus, Product } from "./demo-data";
 import { change7d } from "./demo-data";
 import { fd } from "./format";
 
@@ -15,7 +15,7 @@ export interface ProductRow {
   store: string;
   name: string;
   image: string | null;
-  list: string;
+  listId: string | null;
   targetCents: number | null;
   alertOn: boolean;
   lastCheckedAt: Date | null;
@@ -52,8 +52,6 @@ export function dailySeries(points: PointRow[], today: Date): number[] {
   return out.slice(-365);
 }
 
-const iconFor = (list: string): ProductIcon => (list === "Hogar" ? "kitchen" : "desktop");
-
 function alertStatus(cur: number, target: number | null, alertOn: boolean): AlertStatus {
   if (target == null) return "none";
   if (cur <= target) return "alcanzado";
@@ -79,8 +77,9 @@ export function productFromRows(row: ProductRow, points: PointRow[], now: Date):
   return {
     id: row.id,
     name: row.name,
-    list: (row.list === "Hogar" ? "Hogar" : "Tecnología") as ListName,
-    icon: iconFor(row.list),
+    list: row.listId,
+    // Real products have a photo; the icon is only a fallback
+    icon: "desktop",
     image: row.image ?? undefined,
     cur,
     prev7,

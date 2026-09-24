@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { IconBrandTelegram, IconLogout, IconMail, IconMoon, IconRestore, IconSun, IconTrash } from "@tabler/icons-react";
-import { Avatar } from "@/components/app/shell";
 import { useTheme, type Theme } from "@/components/theme";
 import { Button, Card, cx, enter, Segmented, Switch } from "@/components/ui";
-import { PRODUCT_LIMIT } from "@/lib/account-types";
 import { authClient } from "@/lib/auth-client";
 import { useDemo, useIsAccount, type Freq } from "@/lib/store";
+import { AccountProfile, PasswordCard } from "./profile";
 
 const FREQS: { value: Freq; label: string; desc: string; pro?: boolean }[] = [
   { value: "15m", label: "Cada 15 minutos", desc: "Para ofertas relámpago.", pro: true },
@@ -46,22 +45,10 @@ export default function AjustesPage() {
       <h1 {...enter(0, "m-0 text-xl font-semibold tracking-[-0.015em]")}>Ajustes</h1>
       <div className="flex max-w-[760px] flex-col gap-4">
         {isAccount && account ? (
-          <Card {...enter(1)}>
-            <div className="border-b border-border p-4">
-              <h2 className="m-0 text-sm font-semibold">Cuenta</h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 p-4">
-              <Avatar name={account.name} image={account.image} size={44} />
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium">{account.name}</span>
-                <span className="truncate text-[13px] text-text-3">{account.email} · con Google</span>
-              </span>
-              <SignOutButton />
-            </div>
-            <div className="rounded-b-[10px] border-t border-border bg-surface-2 px-4 py-3 text-xs text-text-3">
-              Plan gratuito · {productCount} de {PRODUCT_LIMIT} productos
-            </div>
-          </Card>
+          <>
+            <AccountProfile account={account} productCount={productCount} signOut={<SignOutButton />} />
+            {account.provider === "email" && <PasswordCard />}
+          </>
         ) : (
           <Card {...enter(1)}>
             <div className="border-b border-border p-4">

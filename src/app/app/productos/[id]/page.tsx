@@ -14,6 +14,7 @@ import {
   IconExternalLink,
   IconMail,
   IconRefresh,
+  IconSelector,
   IconTrash,
   IconTruckDelivery,
 } from "@tabler/icons-react";
@@ -156,7 +157,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
         <div className="flex min-w-[220px] flex-1 flex-col gap-2">
           <h1 className="m-0 text-[22px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance">{p.name}</h1>
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13px] text-text-2">
-            <span className="inline-flex h-[22px] items-center rounded-full bg-surface-3 px-2 text-xs font-medium text-text">{p.list}</span>
+            <ListPicker p={p} />
             <Meta icon={<IconCalendar size={14} aria-hidden />}>Seguido desde {p.since}</Meta>
             <Meta icon={<IconBuildingStore size={14} aria-hidden />}>{p.stores} tiendas</Meta>
             {p.simulated && (
@@ -606,5 +607,33 @@ function ProductMenu({ p }: { p: Product }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Chip with the product's list. Picking another one moves the product there
+function ListPicker({ p }: { p: Product }) {
+  const lists = useDemo((s) => s.lists);
+  const moveProduct = useDemo((s) => s.moveProduct);
+  const current = lists.find((l) => l.id === p.list);
+  return (
+    <label className="relative inline-flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full bg-surface-3 pr-6 pl-2 text-xs font-medium text-text transition-colors hover:bg-border">
+      <span className="size-2 rounded-[2px]" style={{ background: current?.color ?? "var(--text-3)" }} />
+      {current?.name ?? "Sin lista"}
+      <IconSelector size={12} className="absolute right-1.5 text-text-3" aria-hidden />
+      {/* Invisible select on top of the chip, so it opens the native menu */}
+      <select
+        aria-label="Cambiar de lista"
+        value={p.list ?? ""}
+        onChange={(e) => moveProduct(p.id, e.target.value || null)}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        {lists.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.name}
+          </option>
+        ))}
+        <option value="">Sin lista</option>
+      </select>
+    </label>
   );
 }

@@ -140,7 +140,7 @@ describe("price history from saved rows", () => {
         store: "Tienda",
         name: "Auriculares",
         image: null,
-        list: "Tecnología",
+        listId: "tecnologia",
         targetCents: 36000,
         alertOn: true,
         lastCheckedAt: d("2026-09-09"),

@@ -21,17 +21,18 @@
 
 **Compra al punt més baix.** Nadir és un monitor de preus: segueix els productes que t'interessen en diverses botigues, en desa l'historial i t'avisa quan baixen del preu que tu tries.
 
-El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfolio construït com un producte SaaS real: disseny propi amb un sistema de tokens, comptes amb Google, base de dades, tasques programades, lògica de domini provada i desplegat en producció.
+El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfolio construït com un producte SaaS real: disseny propi amb un sistema de tokens, comptes amb Google o correu, base de dades, tasques programades, lògica de domini provada i desplegat en producció.
 
 > **Web:** [nadir.aleixaj.com](https://nadir.aleixaj.com) (la interfície és en castellà)
 > **Demo sense registre:** prem «Entrar como demo» i entraràs en un compte que ja segueix 12 productes, amb alertes i un historial d'un any.
-> **Compte real:** entra amb Google, cerca qualsevol producte del catàleg i comença a seguir-ne el preu.
+> **Compte real:** entra amb Google o crea un compte amb el teu correu, cerca qualsevol producte del catàleg i comença a seguir-ne el preu.
 
 ## Què pots fer
 
 - **Tauler** amb les baixades de la setmana, les alertes actives, les últimes baixades i els productes a prop del preu objectiu.
 - **Cercar i afegir productes pel nom**, amb suggeriments i fotos mentre escrius i navegació amb el teclat. També es pot enganxar l'enllaç d'una botiga.
 - **Els meus productes**: taula amb minigràfica de 7 dies, mínim històric, millor botiga i estat de l'alerta. Filtres per llista, cerca i quatre maneres d'ordenar.
+- **Llistes pròpies**: crea, canvia el nom o el color, o esborra les teves llistes i mou cada producte a la que vulguis.
 - **Fitxa de producte**, la pantalla principal:
   - gràfica de l'historial dibuixada en SVG, amb períodes de 7 dies, 1 mes, 3 mesos i 1 any, tooltip, línia del preu objectiu i el punt *nadir* marcat;
   - comparativa de botigues ordenada pel preu final, amb l'opció «Millor» destacada;
@@ -39,7 +40,7 @@ El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfoli
   - resum del període, «Revisar el preu ara» i «Deixar de seguir».
 - **Alertes** actives amb el progrés cap a l'objectiu, i historial d'avisos generats.
 - **Botigues**: estat de cada botiga, última revisió i reintent si falla.
-- **Configuració**: compte de Google, canals, freqüència de revisió, tema, tancar la sessió i eliminar el compte amb totes les seves dades.
+- **Configuració**: perfil (nom i foto, que pots pujar des del teu ordinador), canvi de contrasenya, canals, freqüència de revisió, tema, tancar la sessió i eliminar el compte amb totes les seves dades.
 - **Instal·lable com a aplicació** (PWA) al mòbil o a l'escriptori.
 
 ## Catàleg de prova
@@ -64,7 +65,7 @@ El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (ga
 | Estat | Zustand 5 | Un únic estat amb dos modes: demo (a `localStorage`) i compte real (sincronitzat amb el servidor). |
 | Animació | Motion 13 + CSS | Motion per al que és interactiu (diàleg, toasts, indicadors); CSS per al que és previsible (entrades, brillantors, dibuix de la gràfica). |
 | Base de dades | Neon (Postgres) + Drizzle ORM | Postgres sense servidor, consultes tipades i migracions versionades. |
-| Inici de sessió | Better Auth + Google | Sessions desades a la nostra base de dades, sense contrasenyes. |
+| Inici de sessió | Better Auth | Google o correu i contrasenya (xifrada). Sessions desades a la nostra base de dades. |
 | Servidor | Server Actions + Zod | Cada acció comprova la sessió i la propietat de la dada, i valida l'entrada. |
 | Tests | Vitest | Tests unitaris de la lògica de preus, gràfica, lectura de pàgines, seguretat de les URL i catàleg. |
 | Desplegament | Cloudflare Workers (OpenNext) | Desplegament continu des de GitHub i un Cron Trigger que revisa els preus. |
@@ -76,7 +77,7 @@ El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (ga
  Navegador ────► │ Next.js (OpenNext)                                                 │
                  │  ├─ Pàgines i layouts (Server Components)                          │
                  │  ├─ Server Actions  ── Zod ──► Drizzle ──► Neon Postgres (UE)     │
-                 │  ├─ /api/auth/*  Better Auth + Google                              │
+                 │  ├─ /api/auth/*  Better Auth (Google i correu)                     │
                  │  └─ /api/cron/check  ◄── Cron Trigger (amb clau)                   │
                  └────────────────────────────────────────────────────────────────────┘
 ```
@@ -115,7 +116,7 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 src/
 ├── app/
 │   ├── page.tsx              # Landing
-│   ├── entrar/               # Accés amb Google o demo
+│   ├── entrar/               # Accés amb Google, correu o demo
 │   ├── app/                  # L'aplicació (tauler, productes, fitxa, alertes, botigues, configuració)
 │   ├── api/auth/             # Better Auth
 │   ├── api/cron/check/       # Revisió automàtica de preus
@@ -158,7 +159,7 @@ npm run deploy        # desplega a Cloudflare Workers
 ## Full de ruta
 
 - [x] **Base i MVP**: disseny, totes les pantalles, demo sense registre, estats de càrrega, buit i error.
-- [x] **Comptes reals**: Google, base de dades, dades per usuari, esborrat del compte.
+- [x] **Comptes reals**: Google o correu, perfil amb foto, base de dades, dades per usuari, esborrat del compte.
 - [x] **Motor de preus**: lectura de pàgines, catàleg de prova, historial, revisió programada i avisos a l'aplicació.
 - [x] **Desplegament** a [nadir.aleixaj.com](https://nadir.aleixaj.com) amb desplegament continu.
 - [ ] **Avisos per correu** amb React Email + Resend i, després, Telegram.

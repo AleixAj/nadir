@@ -5,6 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { DEFAULT_LISTS } from "@/lib/demo-data";
 
 export const isGoogleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -13,12 +14,32 @@ function createAuth() {
     baseURL: process.env.BETTER_AUTH_URL,
     secret: process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "pg", schema }),
+    // Sign up and log in with email and password (no email verification yet)
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 8,
+      maxPasswordLength: 128,
+      // Log the user in right after creating the account
+      autoSignIn: true,
+    },
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_CLIENT_ID ?? "",
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
         // Let the user pick an account even if they are already logged into Google
         prompt: "select_account",
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          // Every new account starts with the default lists
+          after: async (newUser) => {
+            await db.insert(schema.userList).values(
+              DEFAULT_LISTS.map((l) => ({ userId: newUser.id, name: l.name, color: l.color })),
+            );
+          },
+        },
       },
     },
     user: {

@@ -34,7 +34,16 @@ export default function PanelPage() {
     : DROPS.filter(([id]) => byId[id]);
   const failing = products.filter((p) => p.lastError);
   const dropSum = products.reduce((acc, p) => acc + Math.max(0, p.prev7 - p.cur), 0);
-  const tech = products.filter((p) => p.list === "Tecnología").length;
+  // "8 en Tecnología · 4 en Hogar": the two lists with more products
+  const lists = useDemo((s) => s.lists);
+  const listSummary =
+    lists
+      .map((l) => ({ name: l.name, count: products.filter((p) => p.list === l.id).length }))
+      .filter((l) => l.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 2)
+      .map((l) => `${l.count} en ${l.name}`)
+      .join(" · ") || "Todavía sin listas";
 
   return (
     <>
@@ -108,7 +117,7 @@ export default function PanelPage() {
               </div>
             </Card>
             <StatLink i={3} href="/app/productos" icon={<IconPackage size={15} aria-hidden />} label="Productos seguidos" value={products.length}>
-              {tech} en Tecnología · {products.length - tech} en Hogar
+              {listSummary}
             </StatLink>
             <StatLink i={4} href="/app/alertas" icon={<IconBell size={15} aria-hidden />} label="Alertas activas" value={withAlert.length}>
               {closeOnes} a menos de 5 € del objetivo

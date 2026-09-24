@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { alertEvent, catalogOffer, pricePoint, product, userSettings } from "@/db/schema";
+import { account, alertEvent, catalogOffer, pricePoint, product, userList, userSettings } from "@/db/schema";
 import type { AccountData, AccountSettings, Freq } from "@/lib/account-types";
 import { eur } from "@/lib/format";
 import { productFromRows, type PointRow } from "@/lib/history";
@@ -40,7 +40,7 @@ export async function getAccountData(user: { id: string; name: string; email: st
   const catalogIds = [...new Set(rows.map((r) => r.catalogId).filter((x): x is string => !!x))];
 
   // These don't depend on each other, so run them in parallel
-  const [points, events, offerRows, settings] = await Promise.all([
+  const [points, events, offerRows, settings, logins, lists] = await Promise.all([
     // Only the last reading of each day, the chart is daily anyway and it keeps the response small
     ids.length
       ? db
@@ -70,6 +70,14 @@ export async function getAccountData(user: { id: string; name: string; email: st
     // Store offers for sample catalog products (for the store comparison)
     catalogIds.length ? db.select().from(catalogOffer).where(inArray(catalogOffer.productId, catalogIds)) : Promise.resolve([]),
     getSettings(user.id),
+    // Login methods of the user ("google" or "credential" for email and password)
+    db.select({ providerId: account.providerId }).from(account).where(eq(account.userId, user.id)),
+    // The user's lists, oldest first
+    db
+      .select({ id: userList.id, name: userList.name, color: userList.color })
+      .from(userList)
+      .where(eq(userList.userId, user.id))
+      .orderBy(userList.createdAt),
   ]);
 
   // Group price points by product
@@ -99,8 +107,14 @@ export async function getAccountData(user: { id: string; name: string; email: st
   const lastChecked = latestCheck(rows);
 
   return {
-    user: { name: user.name, email: user.email, image: user.image ?? null },
+    user: {
+      name: user.name,
+      email: user.email,
+      image: user.image ?? null,
+      provider: logins.some((l) => l.providerId === "google") ? "google" : "email",
+    },
     products,
+    lists,
     alerts: Object.fromEntries(rows.map((r) => [r.id, r.alertOn])),
     history: events.map((e) => {
       const p = byId.get(e.productId)!;

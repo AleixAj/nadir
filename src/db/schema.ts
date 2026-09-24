@@ -65,6 +65,24 @@ export const verification = pgTable("verification", {
 
 // App tables
 
+// Lists a user groups their products in, with a name and a colour
+export const userList = pgTable(
+  "user_list",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Hex colour, like "#2563eb"
+    color: text("color").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("user_list_name_idx").on(t.userId, t.name)],
+);
+
 // A product a user follows, in one store (the one from its URL)
 export const product = pgTable(
   "product",
@@ -79,7 +97,8 @@ export const product = pgTable(
     store: text("store").notNull(),
     name: text("name").notNull(),
     image: text("image"),
-    list: text("list").notNull().default("Tecnología"),
+    // The list it's in. If the list is deleted, the product just stays without one
+    listId: text("list_id").references(() => userList.id, { onDelete: "set null" }),
     currency: text("currency").notNull().default("EUR"),
     targetCents: integer("target_cents"),
     alertOn: boolean("alert_on").notNull().default(true),
@@ -133,6 +152,18 @@ export const userSettings = pgTable("user_settings", {
   telegramAlerts: boolean("telegram_alerts").notNull().default(false),
   // How often their products get checked: 1h, 6h or 24h
   freq: text("freq").notNull().default("24h"),
+});
+
+// Profile photo uploaded by the user (small, already resized in the browser).
+// Kept apart from "user" so the session cookie stays small: user.image only has its URL.
+export const userAvatar = pgTable("user_avatar", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  contentType: text("content_type").notNull(),
+  // Image bytes in base64
+  data: text("data").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Sample catalog

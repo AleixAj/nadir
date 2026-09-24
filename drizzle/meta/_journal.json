@@ -22,6 +22,20 @@
       "when": 1790281674865,
       "tag": "0002_offer_shipping",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790287235635,
+      "tag": "0003_user_avatar",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790288822779,
+      "tag": "0004_user_lists",
+      "breakpoints": true
     }
   ]
 }

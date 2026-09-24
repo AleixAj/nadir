@@ -19,14 +19,14 @@ import { Button, ChangeBadge, changeColor, cx, EmptyMark, enter, ProductThumb, S
 import { minDate, type Product } from "@/lib/demo-data";
 import { eur, eurS } from "@/lib/format";
 import { alertBadge, sortProducts, type SortKey } from "@/lib/insights";
-import { useDemo, useProducts, type ListFilter } from "@/lib/store";
+import { listName, NO_LIST, useDemo, useProducts, type ListFilter } from "@/lib/store";
 
 // Shared column widths for the desktop table header, rows and skeletons
 const COLS = "grid-cols-[minmax(240px,1fr)_108px_150px_124px_112px_164px]";
-const LISTS: ListFilter[] = ["Todas", "Tecnología", "Hogar"];
-
-function inList(product: Product, list: ListFilter) {
-  return list === "Todas" || product.list === list;
+function inList(product: Product, filter: ListFilter) {
+  if (filter === "Todas") return true;
+  if (filter === NO_LIST) return product.list === null;
+  return product.list === filter;
 }
 
 export default function ProductosPage() {
@@ -42,6 +42,8 @@ export default function ProductosPage() {
   const search = useDemo((s) => s.search);
   const setSearch = useDemo((s) => s.setSearch);
   const openAdd = useDemo((s) => s.openAdd);
+  const lists = useDemo((s) => s.lists);
+  const openListEditor = useDemo((s) => s.openListEditor);
   const errored = loadState === "error" && !loading;
   const empty = products.length === 0;
 
@@ -50,6 +52,13 @@ export default function ProductosPage() {
   const matches = products.filter((p) => inList(p, filter) && (!query || p.name.toLowerCase().includes(query)));
   const rows = sortProducts(matches, sort);
   const countIn = (list: ListFilter) => products.filter((p) => inList(p, list)).length;
+
+  // Filter buttons: all products, each list, and "Sin lista" only if some product has none
+  const filterOptions = [
+    { value: "Todas", label: "Todas", count: products.length },
+    ...lists.map((l) => ({ value: l.id, label: l.name, count: countIn(l.id) })),
+  ];
+  if (countIn(NO_LIST) > 0) filterOptions.push({ value: NO_LIST, label: "Sin lista", count: countIn(NO_LIST) });
   const ready = !loading && !errored && !empty;
 
   // "Retry": show the loading state for a moment, then the data
@@ -82,8 +91,12 @@ export default function ProductosPage() {
           label="Filtrar por lista"
           value={filter}
           onChange={setFilter}
-          options={LISTS.map((list) => ({ value: list, label: list, count: countIn(list) }))}
+          options={filterOptions}
         />
+        <Button variant="ghost" onClick={() => openListEditor("new")} aria-label="Nueva lista" title="Nueva lista">
+          <IconPlus size={15} aria-hidden />
+          <span className="desk:hidden">Lista</span>
+        </Button>
         <div className="flex-1" />
         <label className="inline-flex items-center gap-2 text-[13px] text-text-2">
           Ordenar por
@@ -200,6 +213,7 @@ export default function ProductosPage() {
 
 /** Clickable table row (also works with Enter / Space). */
 function ProductRow({ p, i }: { p: Product; i: number }) {
+  const lists = useDemo((s) => s.lists);
   const router = useRouter();
   const on = useDemo((s) => s.alerts[p.id]);
   const open = () => router.push(`/app/productos/${p.id}`);
@@ -224,7 +238,7 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[13px] font-medium">{p.name}</span>
           <span className="text-xs text-text-3">
-            {p.list} · {p.stores} tiendas
+            {listName(lists, p.list)} · {p.stores} tiendas
           </span>
         </span>
       </div>

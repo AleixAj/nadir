@@ -13,28 +13,43 @@ const FREQ_LABEL: Record<Freq, string> = { "15m": "cada 15 minutos", "1h": "cada
 
 type StoreRow = Store & { errMsg?: string; ids?: string[] };
 
-/** Real account: one row per store, built from the followed products. */
-function storesFromProducts(products: Product[]): StoreRow[] {
-  // Group products by store name
-  const byStore = new Map<string, Product[]>();
-  for (const p of products) {
-    const list = byStore.get(p.store) ?? [];
-    list.push(p);
-    byStore.set(p.store, list);
+// Domain of a store link, e.g. "pccomponentes.com". Empty for Google Shopping links.
+function domainOf(url: string | undefined): string {
+  try {
+    const host = new URL(url ?? "").hostname.replace(/^www\./, "");
+    return host.startsWith("google.") ? "" : host;
+  } catch {
+    return "";
   }
+}
+
+// Real account: one row per store, built from the followed products.
+// A product counts for every store in its price comparison, not only the one we follow.
+function storesFromProducts(products: Product[]): StoreRow[] {
+  const byStore = new Map<string, { products: Product[]; url?: string }>();
+  const addTo = (store: string, p: Product, url?: string) => {
+    const entry = byStore.get(store) ?? { products: [] };
+    entry.products.push(p);
+    // Keep the first link that gives us a real store domain
+    if (!domainOf(entry.url)) entry.url = url;
+    byStore.set(store, entry);
+  };
+
+  for (const p of products) {
+    addTo(p.store, p, p.url);
+    for (const offer of p.offers ?? []) {
+      if (offer.store !== p.store) addTo(offer.store, p, offer.url);
+    }
+  }
+
   return [...byStore.entries()]
-    .map(([name, list]) => {
-      const failing = list.filter((p) => p.lastError);
+    .map(([name, { products: list, url }]) => {
+      // Errors only happen on the store we actually check for each product
+      const failing = list.filter((p) => p.store === name && p.lastError);
       const recent = Math.min(...list.map((p) => p.checked));
-      let domain = "";
-      try {
-        domain = new URL(list[0].url ?? "").hostname.replace(/^www\./, "");
-      } catch {
-        // No valid URL, leave the domain empty
-      }
       return {
         name,
-        domain,
+        domain: domainOf(url),
         count: list.length,
         last: sinceLabel(recent),
         time: failing.length ? `${failing.length} con error` : "Todo al día",
@@ -44,7 +59,7 @@ function storesFromProducts(products: Product[]): StoreRow[] {
         ids: failing.map((p) => p.id),
       };
     })
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
 export default function TiendasPage() {

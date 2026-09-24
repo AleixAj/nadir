@@ -17,8 +17,13 @@ export default function PrivacidadPage() {
         <h2>Qué datos guardamos</h2>
         <ul>
           <li>
-            <strong>De tu cuenta de Google:</strong> tu nombre, tu email y tu foto de perfil. Solo pedimos estos datos básicos; no
-            accedemos a tu correo, tus archivos ni ningún otro servicio de Google.
+            <strong>De tu cuenta:</strong> tu nombre, tu email y tu foto de perfil. Si entras con Google, solo pedimos estos datos
+            básicos; no accedemos a tu correo, tus archivos ni ningún otro servicio de Google. Si creas la cuenta con email, tu
+            contraseña se guarda cifrada y nadie puede leerla.
+          </li>
+          <li>
+            <strong>Tu foto, si la subes:</strong> se recorta y se reduce a 256 × 256 píxeles antes de guardarla. Puedes quitarla
+            cuando quieras desde Ajustes.
           </li>
           <li>
             <strong>De tu uso de Nadir:</strong> los productos que sigues (su dirección web, nombre, foto y precio), el histórico de

@@ -2,7 +2,21 @@
 // approximate (not fetched live) and the price history is simulated.
 import { ago, fd, r2 } from "./format";
 
-export type ListName = "Tecnología" | "Hogar";
+// A list the user groups products in (name and colour are up to them)
+export interface ProductList {
+  id: string;
+  name: string;
+  color: string;
+}
+
+// Lists every new account and the demo start with
+export const DEFAULT_LISTS: ProductList[] = [
+  { id: "tecnologia", name: "Tecnología", color: "#2563eb" },
+  { id: "hogar", name: "Hogar", color: "#0d9488" },
+];
+
+// Colours offered when creating a list (any other can be picked too)
+export const LIST_COLORS = ["#ea580c", "#dc2626", "#db2777", "#9333ea", "#2563eb", "#0891b2", "#0d9488", "#16a34a", "#ca8a04", "#64748b"];
 export type AlertStatus = "activa" | "alcanzado" | "pausada" | "none";
 
 // Shape of the simulated history:
@@ -32,7 +46,8 @@ export type ProductIcon =
 export interface Product {
   id: string;
   name: string;
-  list: ListName;
+  // Id of the list it belongs to, or null if it's not in any list
+  list: string | null;
   icon: ProductIcon;
   /** Product photo (in /public). Falls back to the icon. */
   image?: string;
@@ -70,18 +85,18 @@ export const HISTORY_DAYS = 365;
 type Raw = Omit<Product, "series" | "ch">;
 
 const RAW: Raw[] = [
-  { id: "sony-wh-1000xm6", name: "Sony WH-1000XM6", list: "Tecnología", icon: "headphones", cur: 379, prev7: 399, min: 349, minAgo: 58, store: "Amazon", target: 359, alert: "activa", stores: 5, since: "12 mar", checked: 6 },
-  { id: "iphone-17", shape: "launch", name: "Apple iPhone 17 256 GB", list: "Tecnología", icon: "phone", cur: 959, prev7: 959, min: 929, minAgo: 34, store: "MediaMarkt", target: 899, alert: "activa", stores: 4, since: "2 jun", checked: 4 },
-  { id: "galaxy-s25", shape: "launch", name: "Samsung Galaxy S25 256 GB", list: "Tecnología", icon: "phone", cur: 699, prev7: 749, min: 659, minAgo: 120, store: "Amazon", target: 650, alert: "activa", stores: 5, since: "3 abr", checked: 6 },
-  { id: "pixel-10", shape: "launch", name: "Google Pixel 10 128 GB", list: "Tecnología", icon: "phone", cur: 749, prev7: 799, min: 729, minAgo: 143, store: "PcComponentes", target: 750, alert: "alcanzado", stores: 4, since: "9 feb", checked: 9 },
-  { id: "airpods-pro-3", shape: "volatile", name: "Apple AirPods Pro 3", list: "Tecnología", icon: "headphones", cur: 239, prev7: 249, min: 229, minAgo: 170, store: "Amazon", target: null, alert: "none", stores: 5, since: "27 feb", checked: 6 },
-  { id: "mx-keys-s", shape: "volatile", name: "Logitech MX Keys S", list: "Tecnología", icon: "keyboard", cur: 99.99, prev7: 109.99, min: 89.99, minAgo: 96, store: "PcComponentes", target: 95, alert: "activa", stores: 4, since: "21 may", checked: 9 },
-  { id: "keychron-k8-pro", shape: "stable", name: "Keychron K8 Pro", list: "Tecnología", icon: "keyboard", cur: 119, prev7: 119, min: 109, minAgo: 250, store: "Amazon", target: null, alert: "none", stores: 2, since: "30 dic", checked: 6 },
-  { id: "mx-master-3s", shape: "volatile", name: "Logitech MX Master 3S", list: "Tecnología", icon: "mouse", cur: 89.99, prev7: 99.99, min: 74.99, minAgo: 300, store: "Amazon", target: null, alert: "none", stores: 4, since: "6 nov", checked: 6 },
-  { id: "roborock-qrevo-s", shape: "launch", name: "Roborock Qrevo S", list: "Hogar", icon: "robot", cur: 399, prev7: 449, min: 369, minAgo: 45, store: "El Corte Inglés", target: 380, alert: "activa", stores: 4, since: "11 jul", checked: 4 },
-  { id: "delonghi-magnifica-s", shape: "volatile", name: "De'Longhi Magnifica S", list: "Hogar", icon: "coffee", cur: 299, prev7: 309, min: 269, minAgo: 201, store: "Amazon", target: null, alert: "none", stores: 4, since: "18 ene", checked: 6 },
-  { id: "cosori-dual-blaze", name: "Cosori Dual Blaze 6,4 L", list: "Hogar", icon: "kitchen", cur: 139.99, prev7: 129.99, min: 109.99, minAgo: 80, store: "Amazon", target: 115, alert: "pausada", stores: 3, since: "14 abr", checked: 12 },
-  { id: "dyson-v15", shape: "stable", name: "Dyson V15 Detect Absolute", list: "Hogar", icon: "wind", cur: 549, prev7: 549, min: 499, minAgo: 110, store: "El Corte Inglés", target: null, alert: "none", stores: 3, since: "8 mar", checked: 4 },
+  { id: "sony-wh-1000xm6", name: "Sony WH-1000XM6", list: "tecnologia", icon: "headphones", cur: 379, prev7: 399, min: 349, minAgo: 58, store: "Amazon", target: 359, alert: "activa", stores: 5, since: "12 mar", checked: 6 },
+  { id: "iphone-17", shape: "launch", name: "Apple iPhone 17 256 GB", list: "tecnologia", icon: "phone", cur: 959, prev7: 959, min: 929, minAgo: 34, store: "MediaMarkt", target: 899, alert: "activa", stores: 4, since: "2 jun", checked: 4 },
+  { id: "galaxy-s25", shape: "launch", name: "Samsung Galaxy S25 256 GB", list: "tecnologia", icon: "phone", cur: 699, prev7: 749, min: 659, minAgo: 120, store: "Amazon", target: 650, alert: "activa", stores: 5, since: "3 abr", checked: 6 },
+  { id: "pixel-10", shape: "launch", name: "Google Pixel 10 128 GB", list: "tecnologia", icon: "phone", cur: 749, prev7: 799, min: 729, minAgo: 143, store: "PcComponentes", target: 750, alert: "alcanzado", stores: 4, since: "9 feb", checked: 9 },
+  { id: "airpods-pro-3", shape: "volatile", name: "Apple AirPods Pro 3", list: "tecnologia", icon: "headphones", cur: 239, prev7: 249, min: 229, minAgo: 170, store: "Amazon", target: null, alert: "none", stores: 5, since: "27 feb", checked: 6 },
+  { id: "mx-keys-s", shape: "volatile", name: "Logitech MX Keys S", list: "tecnologia", icon: "keyboard", cur: 99.99, prev7: 109.99, min: 89.99, minAgo: 96, store: "PcComponentes", target: 95, alert: "activa", stores: 4, since: "21 may", checked: 9 },
+  { id: "keychron-k8-pro", shape: "stable", name: "Keychron K8 Pro", list: "tecnologia", icon: "keyboard", cur: 119, prev7: 119, min: 109, minAgo: 250, store: "Amazon", target: null, alert: "none", stores: 2, since: "30 dic", checked: 6 },
+  { id: "mx-master-3s", shape: "volatile", name: "Logitech MX Master 3S", list: "tecnologia", icon: "mouse", cur: 89.99, prev7: 99.99, min: 74.99, minAgo: 300, store: "Amazon", target: null, alert: "none", stores: 4, since: "6 nov", checked: 6 },
+  { id: "roborock-qrevo-s", shape: "launch", name: "Roborock Qrevo S", list: "hogar", icon: "robot", cur: 399, prev7: 449, min: 369, minAgo: 45, store: "El Corte Inglés", target: 380, alert: "activa", stores: 4, since: "11 jul", checked: 4 },
+  { id: "delonghi-magnifica-s", shape: "volatile", name: "De'Longhi Magnifica S", list: "hogar", icon: "coffee", cur: 299, prev7: 309, min: 269, minAgo: 201, store: "Amazon", target: null, alert: "none", stores: 4, since: "18 ene", checked: 6 },
+  { id: "cosori-dual-blaze", name: "Cosori Dual Blaze 6,4 L", list: "hogar", icon: "kitchen", cur: 139.99, prev7: 129.99, min: 109.99, minAgo: 80, store: "Amazon", target: 115, alert: "pausada", stores: 3, since: "14 abr", checked: 12 },
+  { id: "dyson-v15", shape: "stable", name: "Dyson V15 Detect Absolute", list: "hogar", icon: "wind", cur: 549, prev7: 549, min: 499, minAgo: 110, store: "El Corte Inglés", target: null, alert: "none", stores: 3, since: "8 mar", checked: 4 },
 ];
 
 // How many days ago (from 24 sep 2026) the big sales happened
@@ -327,7 +342,8 @@ export interface CatalogItem {
   image?: string;
   store: string;
   price: number;
-  list: ListName;
+  // Suggested list name, e.g. "Hogar"
+  list: string;
   others: string;
 }
 
@@ -369,7 +385,7 @@ export function productFromCatalog(c: CatalogItem, target: number | null, seed: 
   return {
     id: c.slug,
     name: c.name,
-    list: c.list,
+    list: null,
     icon: c.icon,
     image: c.image,
     ...base,
@@ -392,7 +408,8 @@ export interface DemoHit {
   icon: ProductIcon;
   store: string;
   price: number;
-  list: ListName;
+  // Suggested list name (only for products you don't follow yet)
+  list?: string;
   /** Id of the product if you already follow it (to link to its page) */
   followedId?: string;
   catalog?: CatalogItem;
@@ -432,7 +449,7 @@ export function searchDemo(q: string, followed: Product[], limit = 6): DemoHit[]
     })),
     ...followed
       .filter((p) => matches(p.name) && !CATALOG.some((c) => c.slug === p.id))
-      .map((p) => ({ key: "p-" + p.id, name: p.name, image: p.image, icon: p.icon, store: p.store, price: p.cur, list: p.list, followedId: p.id })),
+      .map((p) => ({ key: "p-" + p.id, name: p.name, image: p.image, icon: p.icon, store: p.store, price: p.cur, followedId: p.id })),
   ];
   // Best match first; on a tie, products you don't follow yet go first
   const followedLast = (h: DemoHit) => (h.followedId ? 1 : 0);

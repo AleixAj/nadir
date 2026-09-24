@@ -8,13 +8,15 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/server/actions";
 import type { AccountAlert, AccountData, AccountUser, ActionResult, Freq } from "./account-types";
-import { DEMO_PRODUCTS, type AlertStatus, type ListName, type Product } from "./demo-data";
+import { DEFAULT_LISTS, DEMO_PRODUCTS, type AlertStatus, type Product, type ProductList } from "./demo-data";
 import type { SortKey } from "./insights";
 
 export type { Freq, SortKey };
 
 export type LoadState = "normal" | "vacio" | "cargando" | "error";
-export type ListFilter = "Todas" | ListName;
+// "Todas", "sin-lista" or the id of a list
+export type ListFilter = string;
+export const NO_LIST = "sin-lista";
 export type Mode = "demo" | "account";
 
 /** Demo alerts: on for active or reached alerts, off for paused ones. */
@@ -32,9 +34,27 @@ function alertStatus(price: number, target: number, on: boolean): AlertStatus {
   return on ? "activa" : "pausada";
 }
 
+// Name of a list by its id ("Sin lista" if there is none)
+export function listName(lists: ProductList[], id: string | null) {
+  return lists.find((l) => l.id === id)?.name ?? "Sin lista";
+}
+
+function addedMessage(lists: ProductList[], listId: string | null) {
+  return listId ? "Producto añadido a " + listName(lists, listId) : "Producto añadido";
+}
+
+// Same rules as the server: 1-30 characters and no repeated names
+function checkListName(lists: ProductList[], name: string, exceptId?: string) {
+  const clean = name.trim();
+  if (!clean || clean.length > 30) return "Escribe un nombre de 1 a 30 caracteres.";
+  const taken = lists.some((l) => l.id !== exceptId && l.name.toLowerCase() === clean.toLowerCase());
+  return taken ? "Ya tienes una lista con ese nombre." : null;
+}
+
 interface DemoState {
   mode: Mode;
   products: Product[];
+  lists: ProductList[];
   /** Alert on (true) or paused (false), by product id */
   alerts: Record<string, boolean>;
   channels: { email: boolean; telegram: boolean };
@@ -52,6 +72,8 @@ interface DemoState {
   sort: SortKey;
   search: string;
   addOpen: boolean;
+  // List being created ("new") or edited (its id) in the list dialog
+  listEditor: string | null;
   toast: { id: number; msg: string; tone: "ok" | "error" } | null;
 
   setLoadState: (s: LoadState) => void;
@@ -72,19 +94,31 @@ interface DemoState {
   toggleAlert: (id: string) => void;
   saveAlert: (id: string, target: number, on: boolean) => Promise<void>;
   addProduct: (p: Product) => void;
-  addFromUrl: (input: { url: string; target: number | null; list: ListName }) => Promise<boolean>;
-  addFromCatalog: (input: { catalogId: string; target: number | null; list: ListName }) => Promise<boolean>;
+  addFromUrl: (input: { url: string; target: number | null; listId: string | null }) => Promise<boolean>;
+  addFromCatalog: (input: { catalogId: string; target: number | null; listId: string | null }) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   checkNow: (id: string) => Promise<void>;
   setChannel: (k: "email" | "telegram", on: boolean) => void;
   setFreq: (f: Freq) => void;
   setProfile: (p: { name: string; email: string }) => void;
+  // Real account profile (saved on the server)
+  updateName: (name: string) => Promise<boolean>;
+  uploadAvatar: (dataUrl: string) => Promise<boolean>;
+  removeAvatar: () => Promise<boolean>;
   resetDemo: () => void;
+  // Lists
+  openListEditor: (id: string | "new") => void;
+  closeListEditor: () => void;
+  createList: (l: { name: string; color: string }) => Promise<boolean>;
+  updateList: (id: string, l: { name: string; color: string }) => Promise<boolean>;
+  deleteList: (id: string) => Promise<boolean>;
+  moveProduct: (id: string, listId: string | null) => Promise<boolean>;
 }
 
 /** Default values for the fields saved in localStorage. */
 const PERSISTED = {
   products: DEMO_PRODUCTS,
+  lists: DEFAULT_LISTS,
   alerts: initialAlerts(),
   channels: { email: true, telegram: true },
   freq: "1h" as Freq,
@@ -94,6 +128,7 @@ const PERSISTED = {
 /** Maps account data from the server to the store shape. */
 const fromAccount = (d: AccountData) => ({
   products: d.products,
+  lists: d.lists,
   alerts: d.alerts,
   channels: { email: d.settings.email, telegram: d.settings.telegram },
   freq: d.settings.freq,
@@ -143,6 +178,7 @@ export const useDemo = create<DemoState>()(
         sort: "drop",
         search: "",
         addOpen: false,
+        listEditor: null,
         toast: null,
 
         setLoadState: (loadState) => set({ loadState }),
@@ -198,10 +234,10 @@ export const useDemo = create<DemoState>()(
             alerts: p.target ? { ...s.alerts, [p.id]: true } : s.alerts,
             loadState: s.loadState === "vacio" ? "normal" : s.loadState,
           }));
-          get().showToast("Producto añadido a " + p.list);
+          get().showToast(addedMessage(get().lists, p.list));
         },
-        addFromUrl: (input) => apply(api.addProduct(input), "Producto añadido a " + input.list),
-        addFromCatalog: (input) => apply(api.addFromCatalog(input), "Producto añadido a " + input.list),
+        addFromUrl: (input) => apply(api.addProduct(input), addedMessage(get().lists, input.listId)),
+        addFromCatalog: (input) => apply(api.addFromCatalog(input), addedMessage(get().lists, input.listId)),
         deleteProduct: async (id) => {
           if (isAccount()) return apply(api.deleteProduct(id), "Has dejado de seguir el producto");
           set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
@@ -242,16 +278,63 @@ export const useDemo = create<DemoState>()(
           set({ profile });
           get().showToast("Cambios guardados");
         },
+        updateName: (name) => apply(api.updateName(name), "Nombre actualizado"),
+        uploadAvatar: (dataUrl) => apply(api.uploadAvatar(dataUrl), "Foto actualizada"),
+        removeAvatar: () => apply(api.removeAvatar(), "Foto eliminada"),
         resetDemo: () => {
           set({ ...PERSISTED, alerts: initialAlerts(), filter: "Todas", search: "", loadState: "normal" });
           get().showToast("Demo restablecida");
+        },
+
+        openListEditor: (id) => set({ listEditor: id }),
+        closeListEditor: () => set({ listEditor: null }),
+        createList: async (l) => {
+          const error = checkListName(get().lists, l.name);
+          if (error) {
+            get().showToast(error, "error");
+            return false;
+          }
+          if (isAccount()) return apply(api.createList(l), "Lista creada");
+          // Demo: a random id is enough, it only lives in this browser
+          set((s) => ({ lists: [...s.lists, { id: crypto.randomUUID(), name: l.name.trim(), color: l.color }] }));
+          get().showToast("Lista creada");
+          return true;
+        },
+        updateList: async (id, l) => {
+          const error = checkListName(get().lists, l.name, id);
+          if (error) {
+            get().showToast(error, "error");
+            return false;
+          }
+          if (isAccount()) return apply(api.updateList({ id, ...l }), "Lista guardada");
+          set((s) => ({ lists: s.lists.map((x) => (x.id === id ? { ...x, name: l.name.trim(), color: l.color } : x)) }));
+          get().showToast("Lista guardada");
+          return true;
+        },
+        deleteList: async (id) => {
+          // If we were looking at that list, go back to all products
+          if (get().filter === id) set({ filter: "Todas" });
+          if (isAccount()) return apply(api.deleteList(id), "Lista eliminada");
+          set((s) => ({
+            lists: s.lists.filter((x) => x.id !== id),
+            products: s.products.map((p) => (p.list === id ? { ...p, list: null } : p)),
+          }));
+          get().showToast("Lista eliminada");
+          return true;
+        },
+        moveProduct: async (id, listId) => {
+          const message = listId ? "Movido a " + listName(get().lists, listId) : "Quitado de la lista";
+          if (isAccount()) return apply(api.moveProduct({ id, listId }), message);
+          set((s) => ({ products: s.products.map((p) => (p.id === id ? { ...p, list: listId } : p)) }));
+          get().showToast(message);
+          return true;
         },
       };
     },
     {
       name: "nadir-demo",
       // Bumping the version drops data saved in an old format
-      version: 4,
+      version: 5,
       migrate: () => ({ ...PERSISTED, alerts: initialAlerts() }),
       // In account mode nothing is saved in the browser; the data lives on the server
       storage: createJSONStorage(() => ({
@@ -265,6 +348,7 @@ export const useDemo = create<DemoState>()(
       skipHydration: true,
       partialize: (s) => ({
         products: s.products,
+        lists: s.lists,
         alerts: s.alerts,
         channels: s.channels,
         freq: s.freq,

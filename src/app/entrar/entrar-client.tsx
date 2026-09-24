@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { IconAlertCircle, IconLoader2, IconPlayerPlay } from "@tabler/icons-react";
+import { IconAlertCircle, IconEye, IconEyeOff, IconLoader2, IconPlayerPlay } from "@tabler/icons-react";
 import { btn, Logo } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
@@ -20,10 +20,32 @@ function GoogleG() {
   );
 }
 
+// Turns Better Auth error codes into messages for the user
+function emailErrorMessage(code: string | undefined): string {
+  if (code === "USER_ALREADY_EXISTS" || code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
+    return "Ya existe una cuenta con este email. Entra con tu contraseña o con Google.";
+  }
+  if (code === "INVALID_EMAIL_OR_PASSWORD") return "El email o la contraseña no son correctos.";
+  if (code === "INVALID_EMAIL") return "Escribe un email válido.";
+  if (code === "PASSWORD_TOO_SHORT") return "La contraseña tiene que tener al menos 8 caracteres.";
+  if (code === "TOO_MANY_REQUESTS") return "Demasiados intentos. Espera un minuto y vuelve a probar.";
+  return "No se ha podido completar. Inténtalo de nuevo.";
+}
+
+const INPUT =
+  "h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--brand-soft)]";
+
 export function EntrarClient({ googleReady }: { googleReady: boolean }) {
   const params = useSearchParams();
   const registro = params.get("modo") === "registro";
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // Email form
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [sending, setSending] = useState(false);
   // "?error=1" means Google sent the user back after a failed login
   const initialError = params.get("error") ? "No se ha podido iniciar sesión con Google. Inténtalo de nuevo." : "";
   const [error, setError] = useState(initialError);
@@ -42,6 +64,26 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
       setError("No se ha podido conectar con Google. Inténtalo de nuevo.");
     }
   };
+
+  // Sign up or log in with email and password
+  const submitEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSending(true);
+    const result = registro
+      ? await authClient.signUp.email({ name: name.trim() || email.split("@")[0], email: email.trim(), password })
+      : await authClient.signIn.email({ email: email.trim(), password });
+    if (result.error) {
+      setSending(false);
+      setError(emailErrorMessage(result.error.code));
+      return;
+    }
+    // The session cookie is set, open the dashboard
+    router.push("/app");
+    router.refresh();
+  };
+
+  const busy = loading || sending;
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg text-text">
@@ -66,14 +108,14 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
           <div className="flex flex-col gap-1.5 text-center">
             <h1 className="m-0 text-2xl font-semibold tracking-[-0.025em]">{registro ? "Crea tu cuenta" : "Entra en Nadir"}</h1>
             <p className="m-0 text-sm text-text-2">
-              {registro ? "Con tu cuenta de Google, en un clic. Sin contraseñas." : "Accede con tu cuenta de Google."}
+              {registro ? "Gratis. Con Google o con tu email." : "Con tu cuenta de Google o con tu email."}
             </p>
           </div>
           <div className="surface-grad flex flex-col gap-4 rounded-xl border border-border bg-surface/90 p-6 shadow-[0_24px_60px_-30px_var(--glow)] backdrop-blur-sm">
             <button
               type="button"
               onClick={signIn}
-              disabled={!googleReady || loading}
+              disabled={!googleReady || busy}
               className={btn("secondary", "lg", "h-11 w-full text-sm")}
             >
               {loading ? <IconLoader2 size={18} className="animate-spin" aria-hidden /> : <GoogleG />}
@@ -88,6 +130,68 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                 {error}
               </p>
             )}
+            <div className="flex items-center gap-3 text-xs text-text-3">
+              <span className="h-px flex-1 bg-border" />o con tu email<span className="h-px flex-1 bg-border" />
+            </div>
+            <form onSubmit={submitEmail} className="flex flex-col gap-3">
+              {registro && (
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nombre"
+                  aria-label="Nombre"
+                  autoComplete="name"
+                  maxLength={60}
+                  className={INPUT}
+                />
+              )}
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                aria-label="Email"
+                autoComplete="email"
+                className={INPUT}
+              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={registro ? "Contraseña (mínimo 8 caracteres)" : "Contraseña"}
+                  aria-label="Contraseña"
+                  autoComplete={registro ? "new-password" : "current-password"}
+                  className={INPUT + " pr-11"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-text-3 transition-colors hover:text-text"
+                >
+                  {showPassword ? <IconEyeOff size={17} aria-hidden /> : <IconEye size={17} aria-hidden />}
+                </button>
+              </div>
+              <button type="submit" disabled={busy} className={btn("secondary", "lg", "h-11 w-full text-sm")}>
+                {sending && <IconLoader2 size={18} className="animate-spin" aria-hidden />}
+                {registro ? "Crear cuenta" : "Entrar"}
+              </button>
+            </form>
+            <p className="m-0 text-center text-xs text-text-3">
+              {registro ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
+              <Link
+                href={registro ? "/entrar" : "/entrar?modo=registro"}
+                onClick={() => setError("")}
+                className="font-medium text-brand-text underline-offset-2 hover:underline"
+              >
+                {registro ? "Entra" : "Crea una gratis"}
+              </Link>
+            </p>
             <div className="flex items-center gap-3 text-xs text-text-3">
               <span className="h-px flex-1 bg-border" />o<span className="h-px flex-1 bg-border" />
             </div>

@@ -3,11 +3,12 @@
 // Server Actions called directly from the UI.
 // Every action checks the session, and that the product belongs to the user.
 import { and, asc, count, desc, eq, like, sql } from "drizzle-orm";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/db";
-import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userSettings } from "@/db/schema";
-import { PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
-import { getSession } from "@/lib/auth";
+import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userAvatar, userList, userSettings } from "@/db/schema";
+import { LIST_LIMIT, PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
+import { getAuth, getSession } from "@/lib/auth";
 import { normalizeText } from "@/lib/catalog";
 import { simulatedHistory } from "./simulation";
 import { getAccountData } from "./account";
@@ -64,7 +65,18 @@ async function alertIfReached(productId: string, targetCents: number) {
   if (!dup) await db.insert(alertEvent).values({ productId, priceCents: last.priceCents, targetCents });
 }
 
+// Returns the list id only if that list belongs to the user (otherwise no list)
+async function ownListId(userId: string, listId: string | null) {
+  if (!listId) return null;
+  const [row] = await db
+    .select({ id: userList.id })
+    .from(userList)
+    .where(and(eq(userList.id, listId), eq(userList.userId, userId)));
+  return row?.id ?? null;
+}
+
 const idSchema = z.string().uuid();
+const listIdSchema = z.string().min(1).max(64).nullable();
 const priceSchema = z.number().positive().max(1_000_000).nullable();
 
 // Read
@@ -102,7 +114,7 @@ export async function previewProduct(url: string): Promise<
 const addSchema = z.object({
   url: z.string().url().max(2000),
   target: priceSchema,
-  list: z.enum(["Tecnología", "Hogar"]),
+  listId: listIdSchema,
 });
 
 export async function addProduct(input: z.input<typeof addSchema>): Promise<ActionResult> {
@@ -110,7 +122,7 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
   if (!user) return NO_SESSION;
   const parsed = addSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
-  const { url, target, list } = parsed.data;
+  const { url, target, listId } = parsed.data;
 
   if (await reachedLimit(user.id)) return { ok: false, error: LIMIT_ERROR };
 
@@ -128,7 +140,7 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
       store: res.store,
       name: res.info.name,
       image: res.info.image,
-      list,
+      listId: await ownListId(user.id, listId),
       currency: res.info.currency,
       targetCents,
       alertOn: targetCents != null,
@@ -280,7 +292,7 @@ export async function searchProducts(q: string): Promise<ActionResult<{ availabl
 const catalogAddSchema = z.object({
   catalogId: z.string().min(1).max(120),
   target: priceSchema,
-  list: z.enum(["Tecnología", "Hogar"]),
+  listId: listIdSchema,
 });
 
 // Follow a product from the sample catalog. It gets 90 days of simulated
@@ -290,7 +302,7 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
   if (!user) return NO_SESSION;
   const parsed = catalogAddSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
-  const { catalogId, target, list } = parsed.data;
+  const { catalogId, target, listId } = parsed.data;
 
   if (await reachedLimit(user.id)) return { ok: false, error: LIMIT_ERROR };
 
@@ -316,7 +328,7 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
       store: best.store,
       name: item.name,
       image: item.image,
-      list,
+      listId: await ownListId(user.id, listId),
       targetCents,
       alertOn: targetCents != null,
       lastCheckedAt: now,
@@ -330,5 +342,127 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
   const history = simulatedHistory(best.priceCents, catalogId, now);
   await db.insert(pricePoint).values(history.map((h) => ({ productId, ...h })));
   if (targetCents != null) await alertIfReached(productId, targetCents);
+  return fresh(user);
+}
+
+// Profile
+
+// Saves the change through Better Auth, so the session cookie gets the new name or photo too
+async function saveUser(user: SessionUser, changes: { name?: string; image?: string | null }): Promise<ActionResult> {
+  await getAuth().api.updateUser({ body: changes, headers: await headers() });
+  return fresh({ ...user, ...changes });
+}
+
+const nameSchema = z.string().trim().min(1).max(60);
+
+export async function updateName(name: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  const parsed = nameSchema.safeParse(name);
+  if (!parsed.success) return { ok: false, error: "Escribe un nombre de 1 a 60 caracteres." };
+  return saveUser(user, { name: parsed.data });
+}
+
+// The browser sends the photo already cropped to 256x256, so it's small.
+// We still check the size and that the bytes really are an image.
+const MAX_AVATAR_BYTES = 150 * 1024;
+const AVATAR_TYPES = ["image/webp", "image/jpeg", "image/png"];
+
+function looksLikeImage(bytes: Buffer, type: string) {
+  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") return bytes.subarray(1, 4).toString("ascii") === "PNG";
+  // WebP files start with "RIFF", then the size, then "WEBP"
+  return bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+}
+
+export async function uploadAvatar(dataUrl: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+
+  // Expected format: "data:image/webp;base64,AAAA..."
+  const match = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  const type = match?.[1] ?? "";
+  if (!match || !AVATAR_TYPES.includes(type)) return { ok: false, error: "La imagen tiene que ser JPG, PNG o WebP." };
+  const bytes = Buffer.from(match[2], "base64");
+  if (bytes.length > MAX_AVATAR_BYTES) return { ok: false, error: "La imagen es demasiado grande." };
+  if (!looksLikeImage(bytes, type)) return { ok: false, error: "El archivo no parece una imagen válida." };
+
+  const values = { userId: user.id, contentType: type, data: match[2], updatedAt: new Date() };
+  await db.insert(userAvatar).values(values).onConflictDoUpdate({ target: userAvatar.userId, set: values });
+  // "?v=" changes on every upload, so browsers don't show the old cached photo
+  return saveUser(user, { image: `/api/avatar/${user.id}?v=${Date.now()}` });
+}
+
+// Back to the default avatar (the user's initials)
+export async function removeAvatar(): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  await db.delete(userAvatar).where(eq(userAvatar.userId, user.id));
+  return saveUser(user, { image: null });
+}
+
+// Lists
+
+const listSchema = z.object({
+  name: z.string().trim().min(1).max(30),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
+const LIST_INPUT_ERROR = "Escribe un nombre de 1 a 30 caracteres y elige un color.";
+const LIST_NAME_TAKEN = "Ya tienes una lista con ese nombre.";
+
+// True if the user already has another list with this name (ignoring case)
+async function listNameTaken(userId: string, name: string, exceptId?: string) {
+  const rows = await db.select({ id: userList.id, name: userList.name }).from(userList).where(eq(userList.userId, userId));
+  return rows.some((r) => r.id !== exceptId && r.name.toLowerCase() === name.toLowerCase());
+}
+
+export async function createList(input: z.input<typeof listSchema>): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  const parsed = listSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: LIST_INPUT_ERROR };
+
+  const [{ n }] = await db.select({ n: count() }).from(userList).where(eq(userList.userId, user.id));
+  if (n >= LIST_LIMIT) return { ok: false, error: `Puedes tener hasta ${LIST_LIMIT} listas.` };
+  if (await listNameTaken(user.id, parsed.data.name)) return { ok: false, error: LIST_NAME_TAKEN };
+
+  await db.insert(userList).values({ userId: user.id, ...parsed.data });
+  return fresh(user);
+}
+
+export async function updateList(input: z.input<typeof listSchema> & { id: string }): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  const parsed = listSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: LIST_INPUT_ERROR };
+  if (await listNameTaken(user.id, parsed.data.name, input.id)) return { ok: false, error: LIST_NAME_TAKEN };
+
+  await db
+    .update(userList)
+    .set(parsed.data)
+    .where(and(eq(userList.id, input.id), eq(userList.userId, user.id)));
+  return fresh(user);
+}
+
+// Deletes the list. Its products are kept, just without a list (the foreign key sets it to null)
+export async function deleteList(id: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  await db.delete(userList).where(and(eq(userList.id, id), eq(userList.userId, user.id)));
+  return fresh(user);
+}
+
+// Moves a product to another list (or to no list)
+export async function moveProduct(input: { id: string; listId: string | null }): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!user) return NO_SESSION;
+  if (!idSchema.safeParse(input.id).success || !listIdSchema.safeParse(input.listId).success) {
+    return { ok: false, error: "Datos no válidos." };
+  }
+  if (!(await ownProduct(user.id, input.id))) return { ok: false, error: "No encontramos este producto." };
+
+  const listId = await ownListId(user.id, input.listId);
+  await db.update(product).set({ listId }).where(and(eq(product.id, input.id), eq(product.userId, user.id)));
   return fresh(user);
 }

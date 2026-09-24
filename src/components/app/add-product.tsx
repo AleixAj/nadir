@@ -23,7 +23,6 @@ import {
   searchDemo,
   SUPPORTED_STORES,
   type CatalogItem,
-  type ListName,
   type ProductIcon,
 } from "@/lib/demo-data";
 import { eur, parsePrice } from "@/lib/format";
@@ -98,7 +97,8 @@ interface Hit {
   icon: ProductIcon;
   store: string;
   price: number;
-  list?: ListName;
+  // Suggested list name from the catalog, e.g. "Hogar"
+  list?: string;
   followedId?: string;
   catalog?: CatalogItem;
   url?: string;
@@ -183,6 +183,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   const addFromUrl = useDemo((s) => s.addFromUrl);
   const addFromCatalog = useDemo((s) => s.addFromCatalog);
   const products = useDemo((s) => s.products);
+  const lists = useDemo((s) => s.lists);
   const isAccount = useIsAccount();
   const listboxId = useId();
 
@@ -193,7 +194,8 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   const [errMsg, setErrMsg] = useState("");
   const [found, setFound] = useState<Preview>(fromCatalog(CATALOG[0]));
   const [target, setTarget] = useState("");
-  const [list, setList] = useState<ListName>("Tecnología");
+  // Id of the chosen list ("" means no list)
+  const [list, setList] = useState(lists[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
 
   // Search
@@ -235,7 +237,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                 icon: "desktop",
                 store: h.store,
                 price: h.price,
-                list: h.list === "Hogar" ? "Hogar" : "Tecnología",
+                list: h.list,
                 catalogId: h.id,
                 stores: h.stores,
               }));
@@ -257,9 +259,11 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     return () => clearTimeout(t);
   }, [q, mode, isAccount, products]);
 
-  const toPreview = (p: Preview, list?: ListName) => {
+  const toPreview = (p: Preview, suggestedList?: string) => {
     setFound(p);
-    if (list) setList(list);
+    // If the user has a list with the suggested name ("Hogar"...), pick it
+    const match = lists.find((l) => l.name === suggestedList);
+    if (match) setList(match.id);
     // Suggest a target 10% below the current price
     setTarget(String(Math.round(p.price * 0.9)));
     setStep("preview");
@@ -324,6 +328,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     if (step !== "preview" || saving) return;
     const t = parsePrice(target);
     const tgt = t > 0 ? t : null;
+    const listId = list || null;
 
     // Real account: save on the server and only close if it worked
     const saveOnServer = async (add: () => Promise<boolean>) => {
@@ -334,15 +339,15 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     };
     if (isAccount && found.catalogId) {
       const catalogId = found.catalogId;
-      return saveOnServer(() => addFromCatalog({ catalogId, target: tgt, list }));
+      return saveOnServer(() => addFromCatalog({ catalogId, target: tgt, listId }));
     }
     if (isAccount && found.url) {
       const productUrl = found.url;
-      return saveOnServer(() => addFromUrl({ url: productUrl, target: tgt, list }));
+      return saveOnServer(() => addFromUrl({ url: productUrl, target: tgt, listId }));
     }
 
     // Demo: add it to the local store
-    if (found.catalog) addProduct({ ...productFromCatalog(found.catalog, tgt, products.length + 20), list });
+    if (found.catalog) addProduct({ ...productFromCatalog(found.catalog, tgt, products.length + 20), list: listId });
     onClose();
   };
 
@@ -641,11 +646,15 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                     <span className="relative flex">
                       <select
                         value={list}
-                        onChange={(e) => setList(e.target.value as ListName)}
+                        onChange={(e) => setList(e.target.value)}
                         className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-border-strong bg-surface pr-7 pl-2.5 text-[13px] text-text"
                       >
-                        <option>Tecnología</option>
-                        <option>Hogar</option>
+                        {lists.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
+                        <option value="">Sin lista</option>
                       </select>
                       <IconSelector size={14} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-text-3" aria-hidden />
                     </span>

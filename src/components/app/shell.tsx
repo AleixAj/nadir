@@ -9,6 +9,7 @@ import {
   IconBell,
   IconBuildingStore,
   IconCheck,
+  IconPencil,
   IconEye,
   IconFlask,
   IconLayoutDashboard,
@@ -28,17 +29,13 @@ import { useDemo, useIsAccount, useProducts, type LoadState } from "@/lib/store"
 import { useTheme } from "@/components/theme";
 import { Button, cx, Logo, LogoMark } from "@/components/ui";
 import { AddProductModal } from "./add-product";
+import { ListDialog } from "./list-dialog";
 
 const NAV = [
   { href: "/app", label: "Panel", short: "Panel", icon: IconLayoutDashboard },
   { href: "/app/productos", label: "Mis productos", short: "Productos", icon: IconPackage },
   { href: "/app/alertas", label: "Alertas", short: "Alertas", icon: IconBell },
   { href: "/app/tiendas", label: "Tiendas", short: "Tiendas", icon: IconBuildingStore },
-];
-
-const LISTS = [
-  { name: "Tecnología" as const, dot: "#2563eb" },
-  { name: "Hogar" as const, dot: "#0d9488" },
 ];
 
 // "/app" only matches itself; other links also match their sub-pages
@@ -115,6 +112,7 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
         </div>
         <MobileNav />
         <AddProductModal />
+        <ListDialog />
         <Toaster />
       </div>
     </BootContext>
@@ -177,6 +175,8 @@ function Sidebar() {
   const products = useProducts();
   const filter = useDemo((s) => s.filter);
   const setFilter = useDemo((s) => s.setFilter);
+  const lists = useDemo((s) => s.lists);
+  const openListEditor = useDemo((s) => s.openListEditor);
   const profile = useDemo((s) => s.profile);
   const accountUser = useDemo((s) => s.account);
   const isAccount = useIsAccount();
@@ -232,26 +232,50 @@ function Sidebar() {
           })}
         </nav>
         <div className="flex flex-col gap-0.5">
-          <div className="px-2 pb-1.5 text-[11px] font-semibold tracking-[.04em] text-text-3 uppercase">Listas</div>
-          {LISTS.map((l) => {
-            const active = onProducts && filter === l.name;
+          <div className="flex items-center justify-between pb-1 pl-2">
+            <span className="text-[11px] font-semibold tracking-[.04em] text-text-3 uppercase">Listas</span>
+            <button
+              type="button"
+              onClick={() => openListEditor("new")}
+              aria-label="Nueva lista"
+              title="Nueva lista"
+              className="press grid size-6 place-items-center rounded-md text-text-3 hover:bg-surface-3 hover:text-text"
+            >
+              <IconPlus size={14} aria-hidden />
+            </button>
+          </div>
+          {lists.map((l) => {
+            const active = onProducts && filter === l.id;
             return (
-              <Link
-                key={l.name}
-                href="/app/productos"
-                onClick={() => setFilter(l.name)}
-                className={cx(
-                  "press relative flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
-                  active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
-                )}
-              >
-                {active && <SidebarHighlight />}
-                <span className="relative mx-1 size-2 rounded-[2px]" style={{ background: l.dot }} />
-                <span className="relative flex-1">{l.name}</span>
-                <span className="relative text-xs text-text-3">{products.filter((p) => p.list === l.name).length}</span>
-              </Link>
+              <div key={l.id} className="group/list relative">
+                <Link
+                  href="/app/productos"
+                  onClick={() => setFilter(l.id)}
+                  className={cx(
+                    "press relative flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
+                    active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
+                  )}
+                >
+                  {active && <SidebarHighlight />}
+                  <span className="relative mx-1 size-2 shrink-0 rounded-[2px]" style={{ background: l.color }} />
+                  <span className="relative flex-1 truncate">{l.name}</span>
+                  {/* The count hides on hover to make room for the edit button */}
+                  <span className="relative text-xs text-text-3 group-focus-within/list:opacity-0 group-hover/list:opacity-0">
+                    {products.filter((p) => p.list === l.id).length}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => openListEditor(l.id)}
+                  aria-label={`Editar la lista ${l.name}`}
+                  className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded-md text-text-3 opacity-0 group-focus-within/list:opacity-100 group-hover/list:opacity-100 hover:bg-surface hover:text-text focus-visible:opacity-100"
+                >
+                  <IconPencil size={13} aria-hidden />
+                </button>
+              </div>
             );
           })}
+          {lists.length === 0 && <p className="m-0 px-2 text-xs text-text-3">Aún no tienes listas.</p>}
         </div>
         <div className="flex-1" />
         {/* Savings card with fixed sample numbers, demo only */}
@@ -284,14 +308,15 @@ function Sidebar() {
 export function Avatar({ name, image, size = 30 }: { name: string; image?: string | null; size?: number }) {
   if (image) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external Google photo, already optimized
+      // eslint-disable-next-line @next/next/no-img-element -- Google photo or a small uploaded one, already optimized
       <img src={image} alt="" width={size} height={size} referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
     );
   }
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-full bg-brand-soft text-xs font-semibold text-brand-text"
-      style={{ width: size, height: size }}
+      className="grid shrink-0 place-items-center rounded-full bg-brand-soft font-semibold text-brand-text"
+      // The letters grow with the avatar
+      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.38)) }}
     >
       {initials(name)}
     </span>
