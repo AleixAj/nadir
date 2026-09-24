@@ -1,6 +1,12 @@
-<img src="public/logo-256.png" alt="Nadir" width="64">
+<div align="center">
+
+<img src="public/logo-256.png" alt="Nadir" width="96">
 
 # Nadir
+
+**Compra al punt més baix.**
+
+[Web](https://nadir.aleixaj.com) · [Provar la demo](https://nadir.aleixaj.com/app?demo=1)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=fff)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=111)
@@ -19,7 +25,9 @@
   <img src="docs/readme/lang-ca-active.svg" alt="Català" width="170">
 </p>
 
-**Compra al punt més baix.** Nadir és un monitor de preus: segueix els productes que t'interessen en diverses botigues, en desa l'historial i t'avisa quan baixen del preu que tu tries.
+</div>
+
+Nadir és un monitor de preus: segueix els productes que t'interessen en diverses botigues, en desa l'historial i t'avisa quan baixen del preu que tu tries.
 
 El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfolio construït com un producte SaaS real: disseny propi amb un sistema de tokens, comptes amb Google o correu, base de dades, tasques programades, lògica de domini provada i desplegat en producció.
 
