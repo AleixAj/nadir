@@ -11,7 +11,7 @@ export default async function EntrarPage() {
   if (await getSession()) redirect("/app");
   return (
     <Suspense>
-      <EntrarClient googleReady={isGoogleConfigured} />
+      <EntrarClient googleReady={isGoogleConfigured()} />
     </Suspense>
   );
 }
