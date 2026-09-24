@@ -9,6 +9,9 @@
 ![Zustand](https://img.shields.io/badge/Zustand-5-443e38)
 ![Motion](https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff)
 ![Vitest](https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff)
+![Postgres](https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff)
+![Drizzle](https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff)
 
 <p>
   <a href="README.md"><img src="docs/readme/lang-es.svg" alt="Español" width="170"></a>
@@ -58,8 +61,11 @@ Product details:
 | Animation | Motion 13 + CSS | Motion for interactive parts (dialog, toasts, sliding indicators); CSS for predictable ones (enter animations, chart drawing). |
 | Charts | Custom SVG | Full control over the design (step line, *nadir* point, target) without a charting library. |
 | Icons | Tabler Icons | Imported one by one, so only the icons in use are bundled. |
-| Tests | Vitest | Fast unit tests for the pricing logic. |
-| Deployment | Cloudflare (planned) | With the OpenNext adapter, as a subdomain of the portfolio. |
+| Database | Neon (Postgres) + Drizzle ORM | Serverless Postgres that scales to zero; typed queries and versioned migrations. |
+| Auth | Better Auth + Google | Sessions stored in our own database, no passwords. |
+| Server | Server Actions + Zod | Every action checks the session and validates input before touching the database. |
+| Tests | Vitest | Unit tests for pricing logic, page parsing and URL safety. |
+| Deployment | Cloudflare Workers (OpenNext) | Continuous deployment from GitHub and a Cron Trigger that checks prices every hour. |
 
 ## Architecture
 
@@ -140,7 +146,7 @@ npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
+The app runs at `http://localhost:3000`. The demo works with no setup; for real accounts, copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`.
 
 ## Scripts
 
@@ -151,21 +157,24 @@ npm run start      # serve the build
 npm run lint       # ESLint
 npm run typecheck  # check TypeScript without emitting files
 npm test           # unit tests with Vitest
+npm run db:migrate # apply database migrations
+npm run preview    # run the app in the Cloudflare runtime
+npm run deploy     # deploy to Cloudflare Workers
 ```
 
 ## Roadmap
 
 - [x] **Phase 0 · Foundation**: Next.js, TypeScript, Tailwind, design system and light/dark theme.
 - [x] **Phase 1 · MVP with demo**: every screen from the design, no-signup demo, loading, empty and error states, and tests for the logic.
-- [ ] **Deployment** on Cloudflare with CI on GitHub Actions.
-- [ ] **User accounts** with Google sign-in and a database.
-- [ ] **Phase 2 · Price engine**: a scheduled job that checks prices and stores the real history.
+- [x] **User accounts**: Google sign-in, database and real per-user data.
+- [x] **Phase 2 · Price engine**: product page parsing (JSON-LD / Open Graph), real history and scheduled checks.
+- [ ] **Deployment** at `nadir.aleixaj.com` (Cloudflare Workers).
 - [ ] **Phase 3 · Notifications**: emails with React Email + Resend, then Telegram.
 - [ ] **Phase 4 · Polish**: end-to-end tests with Playwright, installable PWA and screenshots in this README.
 
 ## About the data
 
-Nadir is a portfolio project and is not affiliated with any of the stores or brands shown. In the demo, the stores and products are real, but **prices are indicative and the history is simulated**: nothing is fetched live. Real accounts will use real data obtained from sources that allow it.
+Nadir is a portfolio project and is not affiliated with any of the stores or brands shown. In the demo, the stores and products are real, but **prices are indicative and the history is simulated**: nothing is fetched live. Real accounts will use real data obtained from sources that allow it. Product photos come from Amazon.es and belong to their respective owners.
 
 ---
 

@@ -12,7 +12,7 @@ export default function EmailAlertaPage() {
     <div className="min-h-screen bg-surface-2 px-3 py-8">
       <div className="mx-auto mb-3 flex max-w-[600px] flex-col gap-0.5 text-xs text-text-3">
         <span>
-          <strong className="font-semibold text-text">Nadir</strong> &lt;avisos@nadir.app&gt; · para ana.martin@ejemplo.com
+          <strong className="font-semibold text-text">Nadir</strong> &lt;avisos@nadir.app&gt; · para aleix@ejemplo.com
         </span>
         <span>
           Asunto: <strong className="font-semibold text-text">Sony WH-1000XM6 bajó a 349 € en Amazon</strong>

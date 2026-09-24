@@ -9,6 +9,9 @@
 ![Zustand](https://img.shields.io/badge/Zustand-5-443e38)
 ![Motion](https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff)
 ![Vitest](https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff)
+![Postgres](https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff)
+![Drizzle](https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff)
 
 <p>
   <a href="README.md"><img src="docs/readme/lang-es.svg" alt="Español" width="170"></a>
@@ -58,8 +61,11 @@ Detalls de producte:
 | Animació | Motion 13 + CSS | Motion per al que és interactiu (diàleg, toasts, indicadors lliscants); CSS per al que és previsible (entrades, dibuix de la gràfica). |
 | Gràfiques | SVG propi | Control total del disseny (línia esglaonada, punt *nadir*, objectiu) sense dependre d'una llibreria. |
 | Icones | Tabler Icons | Importades una a una, així només s'inclouen les que es fan servir. |
-| Tests | Vitest | Tests unitaris ràpids de la lògica de preus. |
-| Desplegament | Cloudflare (previst) | Amb l'adaptador OpenNext, com a subdomini del portfolio. |
+| Base de dades | Neon (Postgres) + Drizzle ORM | Postgres sense servidor que s'atura sense ús; consultes tipades i migracions versionades. |
+| Inici de sessió | Better Auth + Google | Sessions desades a la nostra pròpia base de dades, sense contrasenyes. |
+| Servidor | Server Actions + Zod | Cada acció comprova la sessió i valida les dades abans de tocar la base de dades. |
+| Tests | Vitest | Tests unitaris de la lògica de preus, la lectura de pàgines i la seguretat de les URL. |
+| Desplegament | Cloudflare Workers (OpenNext) | Desplegament continu des de GitHub i un Cron Trigger que revisa els preus cada hora. |
 
 ## Arquitectura
 
@@ -140,7 +146,7 @@ npm install
 npm run dev
 ```
 
-L'aplicació queda a `http://localhost:3000`.
+L'aplicació queda a `http://localhost:3000`. La demo funciona sense configurar res; per als comptes reals, copia `.env.example` com a `.env.local`, omple la base de dades i les claus de Google, i executa `npm run db:migrate`.
 
 ## Scripts
 
@@ -151,21 +157,24 @@ npm run start      # serveix el build
 npm run lint       # ESLint
 npm run typecheck  # comprova TypeScript sense generar fitxers
 npm test           # tests unitaris amb Vitest
+npm run db:migrate # aplica les migracions a la base de dades
+npm run preview    # prova l'aplicació a l'entorn de Cloudflare
+npm run deploy     # desplega a Cloudflare Workers
 ```
 
 ## Full de ruta
 
 - [x] **Fase 0 · Base**: Next.js, TypeScript, Tailwind, sistema de disseny i tema clar/fosc.
 - [x] **Fase 1 · MVP amb demo**: totes les pantalles del disseny, demo sense registre, estats de càrrega, buit i error, i tests de la lògica.
-- [ ] **Desplegament** a Cloudflare amb CI a GitHub Actions.
-- [ ] **Comptes d'usuari** amb inici de sessió de Google i base de dades.
-- [ ] **Fase 2 · Motor de preus**: tasca programada que revisa els preus i desa l'historial real.
+- [x] **Comptes d'usuari**: inici de sessió amb Google, base de dades i dades reals per usuari.
+- [x] **Fase 2 · Motor de preus**: lectura de la pàgina del producte (JSON-LD / Open Graph), historial real i revisió programada.
+- [ ] **Desplegament** a `nadir.aleixaj.com` (Cloudflare Workers).
 - [ ] **Fase 3 · Avisos**: correus amb React Email + Resend i, després, Telegram.
 - [ ] **Fase 4 · Poliment**: tests d'extrem a extrem amb Playwright, PWA instal·lable i captures en aquest README.
 
 ## Sobre les dades
 
-Nadir és un projecte de portfolio i no té relació amb cap de les botigues o marques que hi apareixen. A la demo, les botigues i els productes són reals, però **els preus són orientatius i l'historial és simulat**: no es consulten en directe. Els comptes reals faran servir dades reals obtingudes de fonts que ho permetin.
+Nadir és un projecte de portfolio i no té relació amb cap de les botigues o marques que hi apareixen. A la demo, les botigues i els productes són reals, però **els preus són orientatius i l'historial és simulat**: no es consulten en directe. Els comptes reals faran servir dades reals obtingudes de fonts que ho permetin. Les fotos de producte són d'Amazon.es i pertanyen als seus respectius titulars.
 
 ---
 

@@ -6,6 +6,7 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 import { IconArrowRight, IconBell, IconBuildingStore, IconChartLine } from "@tabler/icons-react";
 import { useTheme } from "@/components/theme";
 import { btn, ButtonLink, Logo } from "@/components/ui";
+import { authClient } from "@/lib/auth-client";
 import { FEATURED_ID } from "@/lib/demo-data";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -55,12 +56,7 @@ export default function Landing() {
             </Link>
           </nav>
           <div className="flex-1" />
-          <Link href="/entrar" className={btn("ghost", "sm", "hidden desk:inline-flex")}>
-            Iniciar sesión
-          </Link>
-          <ButtonLink href="/app" className="h-[34px] px-3.5">
-            Entrar como demo
-          </ButtonLink>
+          <HeaderActions />
         </div>
       </header>
 
@@ -90,7 +86,7 @@ export default function Landing() {
             precio que tú eliges.
           </motion.p>
           <motion.div variants={item} className="relative mt-1.5 flex w-full flex-col justify-center gap-2.5 desk:w-auto desk:flex-row">
-            <ButtonLink href="/app" size="lg" className="group">
+            <ButtonLink href="/app?demo=1" size="lg" className="group">
               Entrar como demo
               <IconArrowRight size={17} aria-hidden className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5" />
             </ButtonLink>
@@ -143,7 +139,7 @@ export default function Landing() {
             <p className="m-0 text-xs text-text-3">Proyecto de portfolio sin relación con las tiendas mencionadas. Los precios de la demo son orientativos y el histórico está simulado.</p>
           </div>
           <nav aria-label="Pie de página" className="flex flex-wrap gap-5 text-[13px]">
-            <Link href="/app" className="text-text-2 hover:text-text">
+            <Link href="/app?demo=1" className="text-text-2 hover:text-text">
               Demo
             </Link>
             <Link href="/entrar" className="text-text-2 hover:text-text">
@@ -152,11 +148,39 @@ export default function Landing() {
             <Link href="/email/alerta" className="text-text-2 hover:text-text">
               Email de alerta
             </Link>
+            <Link href="/privacidad" className="text-text-2 hover:text-text">
+              Privacidad
+            </Link>
+            <Link href="/condiciones" className="text-text-2 hover:text-text">
+              Condiciones
+            </Link>
           </nav>
           <span className="text-xs text-text-3">© 2026 Nadir</span>
         </div>
       </footer>
     </div>
+  );
+}
+
+/** Con sesión: acceso directo al panel. Sin sesión: entrar y demo. */
+function HeaderActions() {
+  const { data: session } = authClient.useSession();
+  if (session) {
+    return (
+      <ButtonLink href="/app" className="h-[34px] px-3.5">
+        Ir a mi panel
+      </ButtonLink>
+    );
+  }
+  return (
+    <>
+      <Link href="/entrar" className={btn("ghost", "sm", "hidden desk:inline-flex")}>
+        Iniciar sesión
+      </Link>
+      <ButtonLink href="/app?demo=1" className="h-[34px] px-3.5">
+        Entrar como demo
+      </ButtonLink>
+    </>
   );
 }
 
@@ -201,7 +225,7 @@ function AppPreview() {
     () => true,
     () => false,
   );
-  const src = mounted ? `/app/productos/${FEATURED_ID}?embed=1&theme=${theme}` : null;
+  const src = mounted ? `/app/productos/${FEATURED_ID}?embed=1&demo=1&theme=${theme}` : null;
 
   useEffect(() => {
     const el = ref.current;

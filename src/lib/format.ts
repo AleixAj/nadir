@@ -20,8 +20,9 @@ export const pctS = (v: number) => (v > 0.05 ? "+" : v < -0.05 ? "−" : "") + n
 
 export const pct1 = (v: number) => nf1.format(v);
 
-export const ago = (days: number) => {
-  const d = new Date(TODAY);
+/** Fecha de hace `days` días contando desde `from` (por defecto, el "hoy" de la demo). */
+export const ago = (days: number, from: Date = TODAY) => {
+  const d = new Date(from);
   d.setDate(d.getDate() - days);
   return d;
 };
@@ -31,6 +32,15 @@ export const fd = (d: Date) => d.getDate() + " " + MES[d.getMonth()];
 
 /** mar, 28 jul 2026 */
 export const fdl = (d: Date) => DIA[d.getDay()] + ", " + fd(d) + " " + d.getFullYear();
+
+/** "ahora", "hace 12 min", "hace 3 h", "hace 2 d" a partir de minutos. */
+export function sinceLabel(minutes: number | null | undefined) {
+  if (minutes == null) return "sin revisar";
+  if (minutes < 1) return "ahora";
+  if (minutes < 60) return `hace ${Math.round(minutes)} min`;
+  if (minutes < 60 * 24) return `hace ${Math.round(minutes / 60)} h`;
+  return `hace ${Math.round(minutes / 60 / 24)} d`;
+}
 
 /** Acepta "229", "229,5" o "229.50". NaN si no es un número. */
 export const parsePrice = (s: string) => parseFloat(String(s).trim().replace(",", "."));

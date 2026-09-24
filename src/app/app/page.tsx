@@ -5,9 +5,9 @@ import { IconAlertTriangle, IconArrowDownRight, IconArrowRight, IconBell, IconPa
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, EmptyMark, enter, ProductThumb, ProgressBar, Skeleton } from "@/components/ui";
 import { DROPS, FAILING_STORE, SUPPORTED_STORES } from "@/lib/demo-data";
-import { eur, eurS, pct1, pctS } from "@/lib/format";
+import { eur, eurS, pct1, pctS, sinceLabel } from "@/lib/format";
 import { distanceToTarget, leftToTarget, targetProgress } from "@/lib/insights";
-import { useDemo, useProducts } from "@/lib/store";
+import { useDemo, useIsAccount, useProducts } from "@/lib/store";
 
 export default function PanelPage() {
   const loading = useLoading();
@@ -21,14 +21,27 @@ export default function PanelPage() {
   const withAlert = products.filter((p) => p.target && alerts[p.id] && p.alert !== "alcanzado");
   const near = [...withAlert].sort((a, b) => distanceToTarget(a) - distanceToTarget(b)).slice(0, 4);
   const closeOnes = withAlert.filter((p) => leftToTarget(p) < 5).length;
-  const drops = DROPS.filter(([id]) => byId[id]);
+  const isAccount = useIsAccount();
+  const lastCheck = useDemo((s) => s.lastCheckMinutes);
+  // Demo: bajadas de ejemplo. Cuenta real: productos que han bajado en 7 días, de más a menos
+  const drops: [string, string, string][] = isAccount
+    ? products
+        .filter((p) => p.ch < -0.05)
+        .sort((a, b) => a.ch - b.ch)
+        .slice(0, 6)
+        .map((p) => [p.id, p.store, sinceLabel(p.checked)])
+    : DROPS.filter(([id]) => byId[id]);
+  const failing = products.filter((p) => p.lastError);
+  const dropSum = products.reduce((acc, p) => acc + Math.max(0, p.prev7 - p.cur), 0);
   const tech = products.filter((p) => p.list === "Tecnología").length;
 
   return (
     <>
       <div {...enter(0, "flex flex-col gap-1")}>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.015em]">Hola, {name}</h1>
-        <p className="m-0 text-[13px] text-text-2">Última revisión de precios hace 6 min · 24 sep, 10:45</p>
+        <p className="m-0 text-[13px] text-text-2">
+          {isAccount ? `Última revisión de precios: ${sinceLabel(lastCheck)}` : "Última revisión de precios hace 6 min · 24 sep, 10:45"}
+        </p>
       </div>
 
       {loading && <PanelSkeleton />}
@@ -51,25 +64,40 @@ export default function PanelPage() {
 
       {!loading && !empty && (
         <>
-          <div role="alert" {...enter(1, "flex flex-wrap items-start gap-2.5 rounded-lg border border-warn-border bg-warn-soft px-3.5 py-2.5 text-[13px]")}>
-            <IconAlertTriangle size={17} className="mt-px text-warn" aria-hidden />
-            <span className="min-w-[200px] flex-1">
-              <strong className="font-semibold">No podemos revisar {FAILING_STORE} desde las 09:12.</strong> Los precios de 2 productos pueden
-              no estar actualizados.
-            </span>
-            <Link href="/app/tiendas" className="text-[13px] font-medium text-text underline">
-              Ver tiendas
-            </Link>
-          </div>
+          {(!isAccount || failing.length > 0) && (
+            <div role="alert" {...enter(1, "flex flex-wrap items-start gap-2.5 rounded-lg border border-warn-border bg-warn-soft px-3.5 py-2.5 text-[13px]")}>
+              <IconAlertTriangle size={17} className="mt-px text-warn" aria-hidden />
+              <span className="min-w-[200px] flex-1">
+                {isAccount ? (
+                  <>
+                    <strong className="font-semibold">
+                      No hemos podido revisar {failing.length === 1 ? "1 producto" : `${failing.length} productos`}.
+                    </strong>{" "}
+                    {failing[0].lastError}
+                  </>
+                ) : (
+                  <>
+                    <strong className="font-semibold">No podemos revisar {FAILING_STORE} desde las 09:12.</strong> Los precios de 2
+                    productos pueden no estar actualizados.
+                  </>
+                )}
+              </span>
+              <Link href="/app/tiendas" className="text-[13px] font-medium text-text underline">
+                Ver tiendas
+              </Link>
+            </div>
+          )}
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
             <Card {...enter(2, "flex flex-col gap-1.5 p-4")}>
               <div className="flex items-center gap-1.5 text-xs font-medium text-text-2">
                 <IconPigMoney size={15} aria-hidden />
-                Ahorrado este mes
+                {isAccount ? "Bajadas en 7 días" : "Ahorrado este mes"}
               </div>
-              <div className="text-[28px] font-semibold tracking-[-0.025em]">86,00 €</div>
-              <div className="text-xs text-text-3">En 4 compras, frente al precio medio de 90 días</div>
+              <div className="text-[28px] font-semibold tracking-[-0.025em]">{isAccount ? eur(dropSum) : "86,00 €"}</div>
+              <div className="text-xs text-text-3">
+                {isAccount ? "Lo que han bajado en total tus productos esta semana" : "En 4 compras, frente al precio medio de 90 días"}
+              </div>
             </Card>
             <StatLink i={3} href="/app/productos" icon={<IconPackage size={15} aria-hidden />} label="Productos seguidos" value={products.length}>
               {tech} en Tecnología · {products.length - tech} en Hogar
@@ -93,7 +121,7 @@ export default function PanelPage() {
                     href={`/app/productos/${id}`}
                     className={`flex items-center gap-3 px-4 py-2.5 text-text transition-colors hover:bg-surface-2 ${i ? "border-t border-border" : ""}`}
                   >
-                    <ProductThumb icon={p.icon} />
+                    <ProductThumb icon={p.icon} image={p.image} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[13px] font-medium">{p.name}</span>
                       <span className="text-xs text-text-3">
@@ -113,6 +141,7 @@ export default function PanelPage() {
                   </Link>
                 );
               })}
+              {drops.length === 0 && <p className="m-0 p-4 text-[13px] text-text-2">Ninguno de tus productos ha bajado esta semana.</p>}
             </Card>
             <Card {...enter(6, "overflow-hidden")}>
               <div className="flex items-center justify-between border-b border-border px-4 py-3.5">

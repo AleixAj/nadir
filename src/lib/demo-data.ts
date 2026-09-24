@@ -36,6 +36,8 @@ export interface Product {
   name: string;
   list: ListName;
   icon: ProductIcon;
+  /** Foto del producto (en /public). Sin foto se muestra el icono. */
+  image?: string;
   /** Precio actual en la mejor tienda */
   cur: number;
   /** Precio hace 7 días */
@@ -55,6 +57,11 @@ export interface Product {
   series: number[];
   /** Variación en 7 días, en % */
   ch: number;
+  /** Solo en cuentas reales: */
+  url?: string;
+  lastError?: string | null;
+  /** Día del último precio (ISO). Sin él, se usa el "hoy" de la demo. */
+  endDate?: string;
 }
 
 export const HISTORY_DAYS = 365;
@@ -154,13 +161,17 @@ export function makeSeries(
 
 export const change7d = (cur: number, prev7: number) => ((cur - prev7) / prev7) * 100;
 
+/** Foto de un producto de la demo, a partir de su id. Imágenes: Amazon.es. */
+const photo = (id: string) => `/products/${id}.webp`;
+
 export const DEMO_PRODUCTS: Product[] = RAW.map((p, i) => ({
   ...p,
+  image: photo(p.id),
   series: makeSeries(p, i + 1),
   ch: change7d(p.cur, p.prev7),
 }));
 
-export const minDate = (p: Product) => fd(ago(p.minAgo));
+export const minDate = (p: Product) => fd(ago(p.minAgo, p.endDate ? new Date(p.endDate) : undefined));
 
 /** Últimas bajadas del panel: [id, tienda, cuándo] */
 export const DROPS: [string, string, string][] = [
@@ -276,21 +287,24 @@ export interface CatalogItem {
   slug: string;
   name: string;
   icon: ProductIcon;
+  image?: string;
   store: string;
   price: number;
   list: ListName;
   others: string;
 }
 
-export const CATALOG: CatalogItem[] = [
+const CATALOG_RAW: Omit<CatalogItem, "image">[] = [
   { slug: "odyssey-g5", name: 'Samsung Odyssey G5 27"', icon: "desktop", store: "PcComponentes", price: 229, list: "Tecnología", others: "Amazon (234,90 €) y MediaMarkt (239,00 €)" },
   { slug: "sony-wf-1000xm5", name: "Sony WF-1000XM5", icon: "headphones", store: "Amazon", price: 229, list: "Tecnología", others: "MediaMarkt (239,00 €) y Fnac (244,99 €)" },
   { slug: "redmi-note-14-pro", name: "Xiaomi Redmi Note 14 Pro 256 GB", icon: "phone", store: "MediaMarkt", price: 329, list: "Tecnología", others: "Amazon (334,00 €) y PcComponentes (339,00 €)" },
   { slug: "ipad-air-m3", name: 'Apple iPad Air 11" M3', icon: "tablet", store: "El Corte Inglés", price: 699, list: "Tecnología", others: "Amazon (704,00 €) y Fnac (709,00 €)" },
   { slug: "kindle-paperwhite", name: "Kindle Paperwhite", icon: "tablet", store: "Amazon", price: 169.99, list: "Tecnología", others: "MediaMarkt (174,99 €)" },
   { slug: "jbl-flip-6", name: "JBL Flip 6", icon: "speaker", store: "Amazon", price: 99, list: "Tecnología", others: "PcComponentes (104,90 €) y Fnac (109,99 €)" },
-  { slug: "philips-airfryer-xxl", name: "Philips Airfryer XXL", icon: "kitchen", store: "El Corte Inglés", price: 199, list: "Hogar", others: "Amazon (204,99 €) y MediaMarkt (209,00 €)" },
+  { slug: "philips-airfryer-xxl", name: "Philips Airfryer 5000 XXL", icon: "kitchen", store: "El Corte Inglés", price: 199, list: "Hogar", others: "Amazon (204,99 €) y MediaMarkt (209,00 €)" },
 ];
+
+export const CATALOG: CatalogItem[] = CATALOG_RAW.map((c) => ({ ...c, image: photo(c.slug) }));
 
 export const EXAMPLE_URL = "https://www.pccomponentes.com/samsung-odyssey-g5-27";
 
@@ -318,6 +332,7 @@ export function productFromCatalog(c: CatalogItem, target: number | null, seed: 
     name: c.name,
     list: c.list,
     icon: c.icon,
+    image: c.image,
     ...base,
     store: c.store,
     target,

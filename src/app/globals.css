@@ -161,6 +161,43 @@
     color: inherit;
   }
 
+  /* Detalles nativos del navegador con los colores de la marca */
+  :root {
+    accent-color: var(--brand-solid);
+    caret-color: var(--brand);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 32%, transparent);
+    color: var(--text);
+  }
+
+  /* Barras de scroll: naranja sobre oscuro (o sobre blanco en el tema claro) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--brand) 45%, var(--surface-3)) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--brand) padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  /* Firefox no tiene los selectores de arriba: usa la propiedad estándar */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklab, var(--brand) 55%, var(--surface-3)) transparent;
+    }
+  }
+
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;

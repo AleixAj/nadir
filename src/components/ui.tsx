@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useId, type ComponentProps, type ReactNode } from "react";
 import {
@@ -207,8 +208,36 @@ const PRODUCT_ICONS: Record<ProductIcon, Icon> = {
   wind: IconWind,
 };
 
-/** Miniatura del producto. En la demo no hay fotos: se usa un icono. */
-export function ProductThumb({ icon, size = 40, radius = 8 }: { icon: ProductIcon; size?: number; radius?: number }) {
+/** Miniatura del producto: su foto sobre blanco o, si no tiene, un icono. */
+export function ProductThumb({
+  icon,
+  image,
+  size = 40,
+  radius = 8,
+}: {
+  icon: ProductIcon;
+  image?: string;
+  size?: number;
+  radius?: number;
+}) {
+  if (image) {
+    return (
+      <span
+        className="relative block shrink-0 overflow-hidden border border-border bg-white"
+        style={{ width: size, height: size, borderRadius: radius }}
+      >
+        <Image
+          src={image}
+          alt=""
+          fill
+          sizes={`${size}px`}
+          // Las fotos de las tiendas (cuentas reales) se cargan tal cual: pueden venir de cualquier dominio
+          unoptimized={image.startsWith("http")}
+          className="object-contain p-[6%]"
+        />
+      </span>
+    );
+  }
   const Ic = PRODUCT_ICONS[icon];
   return (
     <span

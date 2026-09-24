@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { IconBrandTelegram, IconMail, IconMoon, IconRestore, IconSun } from "@tabler/icons-react";
+import { IconBrandTelegram, IconLogout, IconMail, IconMoon, IconRestore, IconSun, IconTrash } from "@tabler/icons-react";
+import { Avatar } from "@/components/app/shell";
 import { useTheme, type Theme } from "@/components/theme";
 import { Button, Card, cx, enter, Segmented, Switch } from "@/components/ui";
-import { useDemo, type Freq } from "@/lib/store";
+import { PRODUCT_LIMIT } from "@/lib/account-types";
+import { authClient } from "@/lib/auth-client";
+import { useDemo, useIsAccount, type Freq } from "@/lib/store";
 
 const FREQS: { value: Freq; label: string; desc: string; pro?: boolean }[] = [
   { value: "15m", label: "Cada 15 minutos", desc: "Para ofertas relámpago.", pro: true },
   { value: "1h", label: "Cada hora", desc: "Recomendado para la mayoría de productos." },
   { value: "6h", label: "Cada 6 horas", desc: "Suficiente para precios estables." },
-  { value: "24h", label: "Una vez al día", desc: "Revisión diaria a las 08:00." },
+  { value: "24h", label: "Una vez al día", desc: "Una revisión cada 24 horas." },
 ];
 
 const inputCls = "h-9 rounded-md border border-border-strong bg-surface px-2.5 text-[13px] text-text transition-colors focus:border-brand";
@@ -18,6 +21,9 @@ const inputCls = "h-9 rounded-md border border-border-strong bg-surface px-2.5 t
 export default function AjustesPage() {
   const { profile, setProfile, channels, setChannel, freq, setFreq, resetDemo } = useDemo();
   const { theme, setTheme } = useTheme();
+  const isAccount = useIsAccount();
+  const account = useDemo((s) => s.account);
+  const productCount = useDemo((s) => s.products.length);
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email);
 
@@ -33,7 +39,25 @@ export default function AjustesPage() {
     <>
       <h1 {...enter(0, "m-0 text-xl font-semibold tracking-[-0.015em]")}>Ajustes</h1>
       <div className="flex max-w-[760px] flex-col gap-4">
-        <Card {...enter(1)}>
+        {isAccount && account ? (
+          <Card {...enter(1)}>
+            <div className="border-b border-border p-4">
+              <h2 className="m-0 text-sm font-semibold">Cuenta</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 p-4">
+              <Avatar name={account.name} image={account.image} size={44} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-medium">{account.name}</span>
+                <span className="truncate text-[13px] text-text-3">{account.email} · con Google</span>
+              </span>
+              <SignOutButton />
+            </div>
+            <div className="rounded-b-[10px] border-t border-border bg-surface-2 px-4 py-3 text-xs text-text-3">
+              Plan gratuito · {productCount} de {PRODUCT_LIMIT} productos
+            </div>
+          </Card>
+        ) : (
+          <Card {...enter(1)}>
           <div className="border-b border-border p-4">
             <h2 className="m-0 text-sm font-semibold">Perfil</h2>
           </div>
@@ -59,6 +83,7 @@ export default function AjustesPage() {
             </div>
           </form>
         </Card>
+        )}
 
         <Card {...enter(2)}>
           <div className="border-b border-border p-4">
@@ -68,7 +93,7 @@ export default function AjustesPage() {
           {(
             [
               ["email", "Email", profile.email, IconMail],
-              ["telegram", "Telegram", "Conectado como @ana_demo", IconBrandTelegram],
+              ["telegram", "Telegram", isAccount ? "Avisos por Telegram" : "Conectado como @aleix_demo", IconBrandTelegram],
             ] as const
           ).map(([k, label, sub, Ic], i) => (
             <div key={k} className={cx("flex items-center gap-3 px-4 py-3.5", i > 0 && "border-t border-border")}>
@@ -79,7 +104,11 @@ export default function AjustesPage() {
                 <span className="text-[13px] font-medium">{label}</span>
                 <span className="text-xs text-text-3">{sub}</span>
               </span>
-              <Switch on={channels[k]} onChange={() => setChannel(k, !channels[k])} label={label} />
+              {isAccount && k === "telegram" ? (
+                <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[11px] font-semibold text-text-2">Próximamente</span>
+              ) : (
+                <Switch on={channels[k]} onChange={() => setChannel(k, !channels[k])} label={label} />
+              )}
             </div>
           ))}
         </Card>
@@ -148,17 +177,84 @@ export default function AjustesPage() {
           />
         </Card>
 
-        <Card {...enter(5, "flex flex-wrap items-center justify-between gap-3 p-4")}>
-          <div>
-            <h2 className="m-0 text-sm font-semibold">Datos de la demo</h2>
-            <p className="mt-0.5 mb-0 text-xs text-text-3">Tus cambios se guardan en este navegador. Puedes volver a los datos de ejemplo.</p>
-          </div>
-          <Button variant="secondary" onClick={resetDemo}>
-            <IconRestore size={15} aria-hidden />
-            Restablecer demo
-          </Button>
-        </Card>
+        {isAccount ? (
+          <Card {...enter(5, "flex flex-wrap items-center justify-between gap-3 p-4")}>
+            <div>
+              <h2 className="m-0 text-sm font-semibold">Eliminar cuenta</h2>
+              <p className="mt-0.5 mb-0 text-xs text-text-3">Borra tu cuenta, tus productos y todo su histórico. No se puede deshacer.</p>
+            </div>
+            <DeleteAccountButton />
+          </Card>
+        ) : (
+          <Card {...enter(5, "flex flex-wrap items-center justify-between gap-3 p-4")}>
+            <div>
+              <h2 className="m-0 text-sm font-semibold">Datos de la demo</h2>
+              <p className="mt-0.5 mb-0 text-xs text-text-3">Tus cambios se guardan en este navegador. Puedes volver a los datos de ejemplo.</p>
+            </div>
+            <Button variant="secondary" onClick={resetDemo}>
+              <IconRestore size={15} aria-hidden />
+              Restablecer demo
+            </Button>
+          </Card>
+        )}
       </div>
     </>
+  );
+}
+
+function SignOutButton() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="secondary"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        await authClient.signOut();
+        // Recarga completa a propósito: limpia el estado de la cuenta en memoria
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/";
+      }}
+    >
+      <IconLogout size={15} aria-hidden />
+      {busy ? "Cerrando…" : "Cerrar sesión"}
+    </Button>
+  );
+}
+
+/** Borrado en dos pasos: el primer clic pide confirmación. */
+function DeleteAccountButton() {
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const showToast = useDemo((s) => s.showToast);
+  return (
+    <div className="flex items-center gap-2">
+      {confirm && !busy && (
+        <Button variant="ghost" onClick={() => setConfirm(false)}>
+          Cancelar
+        </Button>
+      )}
+      <Button
+        variant="secondary"
+        disabled={busy}
+        className={cx(confirm && "border-up bg-up-soft text-up hover:bg-up-soft")}
+        onClick={async () => {
+          if (!confirm) return setConfirm(true);
+          setBusy(true);
+          const { error } = await authClient.deleteUser();
+          if (error) {
+            setBusy(false);
+            setConfirm(false);
+            showToast("No hemos podido borrar la cuenta. Vuelve a entrar e inténtalo de nuevo.", "error");
+            return;
+          }
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.href = "/";
+        }}
+      >
+        <IconTrash size={15} aria-hidden />
+        {busy ? "Borrando…" : confirm ? "Sí, borrar mi cuenta" : "Eliminar cuenta"}
+      </Button>
+    </div>
   );
 }

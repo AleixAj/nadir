@@ -7,7 +7,7 @@ import { Card, cx, enter, ProductThumb, ProgressBar, Segmented, Switch } from "@
 import { SENT_ALERTS } from "@/lib/demo-data";
 import { ago, eur, eurS, fd, pct1 } from "@/lib/format";
 import { distanceToTarget, leftToTarget, targetProgress } from "@/lib/insights";
-import { useDemo, useProducts } from "@/lib/store";
+import { useDemo, useIsAccount, useProducts } from "@/lib/store";
 
 type Tab = "activas" | "historial";
 const COLS = "grid-cols-[minmax(220px,1fr)_96px_104px_170px_100px_44px]";
@@ -22,7 +22,19 @@ export default function AlertasPage() {
   const rows = products.filter((p) => p.target && p.alert !== "alcanzado").sort((a, b) => distanceToTarget(a) - distanceToTarget(b));
   const activeCount = rows.filter((p) => alerts[p.id]).length;
   const byId = Object.fromEntries(products.map((p) => [p.id, p]));
-  const history = SENT_ALERTS.filter((h) => byId[h.id]);
+  const isAccount = useIsAccount();
+  const accountHistory = useDemo((s) => s.history);
+  // Mismo formato para los avisos de ejemplo y los reales
+  const history = isAccount
+    ? accountHistory.map((h) => ({ key: String(h.id), name: h.name, txt: h.txt, date: h.date, time: h.time, channels: h.channels }))
+    : SENT_ALERTS.filter((h) => byId[h.id]).map((h) => ({
+        key: h.id + h.daysAgo,
+        name: byId[h.id].name,
+        txt: h.txt,
+        date: fd(ago(h.daysAgo)),
+        time: h.time,
+        channels: h.channels,
+      }));
 
   return (
     <>
@@ -61,7 +73,7 @@ export default function AlertasPage() {
                   style={{ opacity: on ? 1 : 0.55 }}
                 >
                   <Link href={`/app/productos/${p.id}`} className="flex min-w-0 items-center gap-3 text-text hover:underline">
-                    <ProductThumb icon={p.icon} />
+                    <ProductThumb icon={p.icon} image={p.image} />
                     <span className="truncate text-[13px] font-medium">{p.name}</span>
                   </Link>
                   <span className="text-right text-[13px] font-semibold text-brand-text">{eurS(p.target!)}</span>
@@ -93,14 +105,14 @@ export default function AlertasPage() {
       {tab === "historial" && (
         <Card key="historial" {...enter(1, "overflow-hidden")}>
           {history.map((h, i) => (
-            <div key={h.id + h.daysAgo} className={cx("flex flex-wrap items-center gap-3 px-4 py-3", i > 0 && "border-t border-border")}>
+            <div key={h.key} className={cx("flex flex-wrap items-center gap-3 px-4 py-3", i > 0 && "border-t border-border")}>
               <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-down-soft text-down">
                 <IconArrowDownRight size={16} aria-hidden />
               </span>
               <span className="flex min-w-[200px] flex-1 flex-col">
-                <span className="text-[13px] font-medium">{byId[h.id].name}</span>
+                <span className="text-[13px] font-medium">{h.name}</span>
                 <span className="text-[13px] text-text-2">
-                  {h.txt} · {fd(ago(h.daysAgo))}
+                  {h.txt} · {h.date}
                 </span>
               </span>
               <span className="flex items-center gap-2.5 text-xs text-text-3">
@@ -114,7 +126,11 @@ export default function AlertasPage() {
               </span>
             </div>
           ))}
-          {history.length === 0 && <p className="m-0 p-6 text-center text-[13px] text-text-2">Todavía no se ha enviado ningún aviso.</p>}
+          {history.length === 0 && (
+            <p className="m-0 p-6 text-center text-[13px] text-text-2">
+              Todavía no hay avisos. Aparecerán aquí cuando un precio baje de tu objetivo.
+            </p>
+          )}
         </Card>
       )}
     </>

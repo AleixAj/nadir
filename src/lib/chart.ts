@@ -1,6 +1,6 @@
 // Geometría de la gráfica del histórico. Es una función pura (sin React)
 // para poder probarla con tests unitarios.
-import { ago, eur, fd } from "./format";
+import { ago as agoFrom, eur, fd } from "./format";
 
 export type RangeKey = "7D" | "1M" | "3M" | "1A";
 
@@ -26,10 +26,15 @@ export interface ChartInput {
   /** Mínimo histórico del producto, para saber si el mínimo visible es el "nadir" */
   allTimeMin: number;
   target: number | null;
+  /** Día del último dato. Por defecto, el "hoy" de la demo. */
+  end?: Date;
 }
 
-export function buildChart({ series, range, width, compact, allTimeMin, target }: ChartInput) {
-  const data = series.slice(-RANGES[range].days);
+export function buildChart({ series, range, width, compact, allTimeMin, target, end }: ChartInput) {
+  let data = series.slice(-RANGES[range].days);
+  // Con un solo precio (producto recién añadido) se dibuja una línea plana
+  if (data.length === 1) data = [data[0], data[0]];
+  const ago = (n: number) => agoFrom(n, end);
   const len = data.length;
   const W = Math.max(280, width);
   const H = compact ? 220 : 280;

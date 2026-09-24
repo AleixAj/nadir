@@ -3,19 +3,63 @@
 import { useState } from "react";
 import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
 import { Button, Card, cx, enter } from "@/components/ui";
-import { STORES } from "@/lib/demo-data";
-import { useDemo } from "@/lib/store";
+import { STORES, type Product, type Store } from "@/lib/demo-data";
+import { sinceLabel } from "@/lib/format";
+import { useDemo, useIsAccount, useProducts, type Freq } from "@/lib/store";
 
 const COLS = "grid-cols-[minmax(200px,1fr)_150px_170px_110px_110px]";
 
+const FREQ_LABEL: Record<Freq, string> = { "15m": "cada 15 minutos", "1h": "cada hora", "6h": "cada 6 horas", "24h": "una vez al día" };
+
+type StoreRow = Store & { errMsg?: string; ids?: string[] };
+
+/** Cuenta real: una fila por tienda, a partir de los productos que sigues. */
+function storesFromProducts(products: Product[]): StoreRow[] {
+  const map = new Map<string, Product[]>();
+  for (const p of products) map.set(p.store, [...(map.get(p.store) ?? []), p]);
+  return [...map.entries()]
+    .map(([name, list]) => {
+      const failing = list.filter((p) => p.lastError);
+      const recent = Math.min(...list.map((p) => p.checked));
+      let domain = "";
+      try {
+        domain = new URL(list[0].url ?? "").hostname.replace(/^www\./, "");
+      } catch {}
+      return {
+        name,
+        domain,
+        count: list.length,
+        last: sinceLabel(recent),
+        time: failing.length ? `${failing.length} con error` : "Todo al día",
+        resp: "—",
+        error: failing.length > 0,
+        errMsg: failing[0]?.lastError ?? undefined,
+        ids: failing.map((p) => p.id),
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+}
+
 export default function TiendasPage() {
   const showToast = useDemo((s) => s.showToast);
+  const checkNow = useDemo((s) => s.checkNow);
+  const products = useProducts();
+  const freq = useDemo((s) => s.freq);
+  const isAccount = useIsAccount();
   const [retrying, setRetrying] = useState<string | null>(null);
-  const ok = STORES.filter((s) => !s.error).length;
+  const stores: StoreRow[] = isAccount
+    ? storesFromProducts(products)
+    : STORES.map((s) => ({ ...s, errMsg: "La tienda no responde (tiempo de espera agotado tras 30 s). Volveremos a intentarlo automáticamente en 10 min." }));
+  const ok = stores.filter((s) => !s.error).length;
 
-  const retry = (name: string) => {
-    setRetrying(name);
-    showToast(`Reintentando revisión de ${name}…`);
+  const retry = async (s: StoreRow) => {
+    setRetrying(s.name);
+    if (isAccount && s.ids?.length) {
+      for (const id of s.ids) await checkNow(id);
+      setRetrying(null);
+      return;
+    }
+    showToast(`Reintentando revisión de ${s.name}…`);
     setTimeout(() => setRetrying(null), 1600);
   };
 
@@ -24,7 +68,7 @@ export default function TiendasPage() {
       <div {...enter(0, "flex flex-col gap-1")}>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.015em]">Tiendas</h1>
         <p className="m-0 text-[13px] text-text-2">
-          {ok} funcionando · {STORES.length - ok} con errores · Revisión automática cada hora
+          {ok} funcionando · {stores.length - ok} con errores · Revisión automática {isAccount ? FREQ_LABEL[freq] : "cada hora"}
         </p>
       </div>
       <Card {...enter(1, "overflow-x-auto")}>
@@ -36,7 +80,7 @@ export default function TiendasPage() {
             <span className="text-right">Productos</span>
             <span className="text-right">Respuesta</span>
           </div>
-          {STORES.map((s, i) => (
+          {stores.map((s, i) => (
             <div key={s.name} className={cx(i > 0 && "border-t border-border")}>
               <div className={cx("grid items-center gap-4 px-4 py-3 text-[13px]", COLS)}>
                 <span className="flex items-center gap-2.5">
@@ -71,9 +115,9 @@ export default function TiendasPage() {
                 <div className="mx-4 mb-3 ml-14 flex flex-wrap items-center gap-2.5 rounded-lg bg-up-soft px-3 py-2.5 text-[13px]">
                   <IconAlertCircle size={16} className="text-up" aria-hidden />
                   <span className="min-w-[240px] flex-1">
-                    La tienda no responde (tiempo de espera agotado tras 30 s). Volveremos a intentarlo automáticamente en 10 min.
+                    {s.errMsg}
                   </span>
-                  <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => retry(s.name)} disabled={retrying === s.name}>
+                  <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => retry(s)} disabled={retrying === s.name}>
                     <IconRefresh size={13} aria-hidden className={cx(retrying === s.name && "animate-spin")} />
                     {retrying === s.name ? "Reintentando…" : "Reintentar ahora"}
                   </Button>
@@ -81,6 +125,9 @@ export default function TiendasPage() {
               )}
             </div>
           ))}
+          {stores.length === 0 && (
+            <p className="m-0 p-6 text-center text-[13px] text-text-2">Las tiendas aparecerán aquí cuando sigas tu primer producto.</p>
+          )}
         </div>
       </Card>
     </>

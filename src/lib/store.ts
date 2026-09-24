@@ -1,18 +1,21 @@
 "use client";
 
-// Estado de la cuenta de demostración. Se guarda en localStorage para que los
-// cambios (alertas, productos añadidos, ajustes) sigan ahí al recargar.
-// Cuando haya cuentas reales, esto se sustituye por la base de datos.
+// Estado de la app. Funciona en dos modos:
+// - demo: datos de ejemplo guardados en localStorage (cambios que sobreviven a recargar).
+// - account: datos reales del usuario; cada cambio se envía al servidor (Server Actions)
+//   y el estado se sustituye por la respuesta, que es la fuente de verdad.
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import * as api from "@/server/actions";
+import type { AccountAlert, AccountData, AccountUser, ActionResult, Freq } from "./account-types";
 import { DEMO_PRODUCTS, type ListName, type Product } from "./demo-data";
 import type { SortKey } from "./insights";
 
-export type { SortKey };
+export type { Freq, SortKey };
 
 export type LoadState = "normal" | "vacio" | "cargando" | "error";
-export type Freq = "15m" | "1h" | "6h" | "24h";
 export type ListFilter = "Todas" | ListName;
+export type Mode = "demo" | "account";
 
 const initialAlerts = () =>
   Object.fromEntries(
@@ -20,6 +23,7 @@ const initialAlerts = () =>
   );
 
 interface DemoState {
+  mode: Mode;
   products: Product[];
   /** Alerta encendida o pausada, por producto */
   alerts: Record<string, boolean>;
@@ -27,13 +31,18 @@ interface DemoState {
   freq: Freq;
   profile: { name: string; email: string };
 
+  // Solo en modo cuenta
+  account: AccountUser | null;
+  history: AccountAlert[];
+  lastCheckMinutes: number | null;
+
   // Estado de la interfaz (no se guarda)
   loadState: LoadState;
   filter: ListFilter;
   sort: SortKey;
   search: string;
   addOpen: boolean;
-  toast: { id: number; msg: string } | null;
+  toast: { id: number; msg: string; tone: "ok" | "error" } | null;
 
   setLoadState: (s: LoadState) => void;
   setFilter: (f: ListFilter) => void;
@@ -41,12 +50,16 @@ interface DemoState {
   setSearch: (q: string) => void;
   openAdd: () => void;
   closeAdd: () => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, tone?: "ok" | "error") => void;
   hideToast: () => void;
 
+  enterAccount: (d: AccountData) => void;
   toggleAlert: (id: string) => void;
-  saveAlert: (id: string, target: number, on: boolean) => void;
+  saveAlert: (id: string, target: number, on: boolean) => Promise<void>;
   addProduct: (p: Product) => void;
+  addFromUrl: (input: { url: string; target: number | null; list: ListName }) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
+  checkNow: (id: string) => Promise<void>;
   setChannel: (k: "email" | "telegram", on: boolean) => void;
   setFreq: (f: Freq) => void;
   setProfile: (p: { name: string; email: string }) => void;
@@ -58,74 +71,156 @@ const PERSISTED = {
   alerts: initialAlerts(),
   channels: { email: true, telegram: true },
   freq: "1h" as Freq,
-  profile: { name: "Ana Martín", email: "ana.martin@ejemplo.com" },
+  profile: { name: "Aleix", email: "aleix@ejemplo.com" },
 };
+
+/** Pasa los datos de la cuenta al formato del estado. */
+const fromAccount = (d: AccountData) => ({
+  products: d.products,
+  alerts: d.alerts,
+  channels: { email: d.settings.email, telegram: d.settings.telegram },
+  freq: d.settings.freq,
+  profile: { name: d.user.name, email: d.user.email },
+  account: d.user,
+  history: d.history,
+  lastCheckMinutes: d.lastCheckMinutes,
+});
 
 export const useDemo = create<DemoState>()(
   persist(
-    (set, get) => ({
-      ...PERSISTED,
-      loadState: "normal",
-      filter: "Todas",
-      sort: "drop",
-      search: "",
-      addOpen: false,
-      toast: null,
-
-      setLoadState: (loadState) => set({ loadState }),
-      setFilter: (filter) => set({ filter }),
-      setSort: (sort) => set({ sort }),
-      setSearch: (search) => set({ search }),
-      openAdd: () => set({ addOpen: true }),
-      closeAdd: () => set({ addOpen: false }),
-      showToast: (msg) => set({ toast: { id: Date.now(), msg } }),
-      hideToast: () => set({ toast: null }),
-
-      toggleAlert: (id) => {
-        const on = !get().alerts[id];
-        set((s) => ({ alerts: { ...s.alerts, [id]: on } }));
-        get().showToast(on ? "Alerta activada" : "Alerta pausada");
-      },
-      saveAlert: (id, target, on) => {
-        set((s) => ({
-          alerts: { ...s.alerts, [id]: on },
-          products: s.products.map((p) =>
-            p.id === id
-              ? { ...p, target, alert: p.cur <= target ? "alcanzado" : on ? "activa" : "pausada" }
-              : p,
-          ),
-        }));
-        get().showToast("Alerta guardada");
-      },
-      addProduct: (p) => {
-        if (get().products.some((x) => x.id === p.id)) {
-          get().showToast("Ya sigues este producto");
-          return;
+    (set, get) => {
+      /** Ejecuta una acción del servidor y aplica su respuesta. */
+      const apply = async (p: Promise<ActionResult>, okMsg?: string): Promise<boolean> => {
+        try {
+          const r = await p;
+          if (!r.ok) {
+            get().showToast(r.error, "error");
+            return false;
+          }
+          set(fromAccount(r.data));
+          if (okMsg) get().showToast(okMsg);
+          return true;
+        } catch {
+          get().showToast("No hemos podido conectar con el servidor.", "error");
+          return false;
         }
-        set((s) => ({
-          products: [p, ...s.products],
-          alerts: p.target ? { ...s.alerts, [p.id]: true } : s.alerts,
-          loadState: s.loadState === "vacio" ? "normal" : s.loadState,
-        }));
-        get().showToast("Producto añadido a " + p.list);
-      },
-      setChannel: (k, on) => set((s) => ({ channels: { ...s.channels, [k]: on } })),
-      setFreq: (freq) => set({ freq }),
-      setProfile: (profile) => {
-        set({ profile });
-        get().showToast("Cambios guardados");
-      },
-      resetDemo: () => {
-        set({ ...PERSISTED, alerts: initialAlerts(), filter: "Todas", search: "", loadState: "normal" });
-        get().showToast("Demo restablecida");
-      },
-    }),
+      };
+      const isAccount = () => get().mode === "account";
+
+      return {
+        mode: "demo",
+        ...PERSISTED,
+        account: null,
+        history: [],
+        lastCheckMinutes: null,
+        loadState: "normal",
+        filter: "Todas",
+        sort: "drop",
+        search: "",
+        addOpen: false,
+        toast: null,
+
+        setLoadState: (loadState) => set({ loadState }),
+        setFilter: (filter) => set({ filter }),
+        setSort: (sort) => set({ sort }),
+        setSearch: (search) => set({ search }),
+        openAdd: () => set({ addOpen: true }),
+        closeAdd: () => set({ addOpen: false }),
+        showToast: (msg, tone = "ok") => set({ toast: { id: Date.now(), msg, tone } }),
+        hideToast: () => set({ toast: null }),
+
+        enterAccount: (d) => set({ mode: "account", loadState: "normal", ...fromAccount(d) }),
+
+        toggleAlert: (id) => {
+          const on = !get().alerts[id];
+          // Cambio inmediato en pantalla; si el servidor falla, se deshace
+          set((s) => ({ alerts: { ...s.alerts, [id]: on } }));
+          if (!isAccount()) {
+            get().showToast(on ? "Alerta activada" : "Alerta pausada");
+            return;
+          }
+          apply(api.toggleAlert(id), on ? "Alerta activada" : "Alerta pausada").then((ok) => {
+            if (!ok) set((s) => ({ alerts: { ...s.alerts, [id]: !on } }));
+          });
+        },
+        saveAlert: async (id, target, on) => {
+          if (isAccount()) {
+            await apply(api.saveAlert({ id, target, on }), "Alerta guardada");
+            return;
+          }
+          set((s) => ({
+            alerts: { ...s.alerts, [id]: on },
+            products: s.products.map((p) =>
+              p.id === id ? { ...p, target, alert: p.cur <= target ? "alcanzado" : on ? "activa" : "pausada" } : p,
+            ),
+          }));
+          get().showToast("Alerta guardada");
+        },
+        addProduct: (p) => {
+          if (get().products.some((x) => x.id === p.id)) {
+            get().showToast("Ya sigues este producto", "error");
+            return;
+          }
+          set((s) => ({
+            products: [p, ...s.products],
+            alerts: p.target ? { ...s.alerts, [p.id]: true } : s.alerts,
+            loadState: s.loadState === "vacio" ? "normal" : s.loadState,
+          }));
+          get().showToast("Producto añadido a " + p.list);
+        },
+        addFromUrl: (input) => apply(api.addProduct(input), "Producto añadido a " + input.list),
+        deleteProduct: async (id) => {
+          if (isAccount()) return apply(api.deleteProduct(id), "Has dejado de seguir el producto");
+          set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
+          get().showToast("Has dejado de seguir el producto");
+          return true;
+        },
+        checkNow: async (id) => {
+          if (!isAccount()) {
+            get().showToast("Precio revisado");
+            return;
+          }
+          try {
+            const r = await api.checkNow(id);
+            if (!r.ok) return get().showToast(r.error, "error");
+            set(fromAccount(r.data));
+            if (r.checkError) get().showToast(r.checkError, "error");
+            else get().showToast("Precio revisado");
+          } catch {
+            get().showToast("No hemos podido conectar con el servidor.", "error");
+          }
+        },
+        setChannel: (k, on) => {
+          set((s) => ({ channels: { ...s.channels, [k]: on } }));
+          if (isAccount()) apply(api.updateSettings({ [k]: on }));
+        },
+        setFreq: (freq) => {
+          set({ freq });
+          if (isAccount() && freq !== "15m") apply(api.updateSettings({ freq }));
+        },
+        setProfile: (profile) => {
+          set({ profile });
+          get().showToast("Cambios guardados");
+        },
+        resetDemo: () => {
+          set({ ...PERSISTED, alerts: initialAlerts(), filter: "Todas", search: "", loadState: "normal" });
+          get().showToast("Demo restablecida");
+        },
+      };
+    },
     {
       name: "nadir-demo",
       // Subir la versión descarta los datos guardados con un formato antiguo
-      version: 2,
+      version: 4,
       migrate: () => ({ ...PERSISTED, alerts: initialAlerts() }),
-      storage: createJSONStorage(() => localStorage),
+      // En modo cuenta no se escribe nada en el navegador: los datos viven en el servidor
+      storage: createJSONStorage(() => ({
+        getItem: (k) => localStorage.getItem(k),
+        setItem: (k, v) => {
+          if (useDemo.getState().mode !== "account") localStorage.setItem(k, v);
+        },
+        removeItem: (k) => localStorage.removeItem(k),
+      })),
       skipHydration: true,
       partialize: (s) => ({
         products: s.products,
@@ -144,3 +239,5 @@ export const useProducts = () => {
   const loadState = useDemo((s) => s.loadState);
   return loadState === "vacio" ? [] : products;
 };
+
+export const useIsAccount = () => useDemo((s) => s.mode === "account");

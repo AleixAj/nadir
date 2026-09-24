@@ -163,7 +163,7 @@ export default function ProductosPage() {
                 href={`/app/productos/${p.id}`}
                 className={cx("flex min-h-16 items-center gap-3 px-3.5 py-3 text-text active:bg-surface-2", i > 0 && "border-t border-border")}
               >
-                <ProductThumb icon={p.icon} size={52} radius={10} />
+                <ProductThumb icon={p.icon} image={p.image} size={52} radius={10} />
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="truncate text-sm font-medium">{p.name}</span>
                   <span className="flex items-center gap-2 text-xs text-text-3">
@@ -206,7 +206,7 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
       style={{ animation: `enter 320ms var(--ease-out-strong) ${Math.min(i, 10) * 25}ms both` }}
     >
       <div role="cell" className="flex min-w-0 items-center gap-3">
-        <ProductThumb icon={p.icon} size={44} />
+        <ProductThumb icon={p.icon} image={p.image} size={44} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[13px] font-medium">{p.name}</span>
           <span className="text-xs text-text-3">

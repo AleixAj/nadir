@@ -9,6 +9,9 @@
 ![Zustand](https://img.shields.io/badge/Zustand-5-443e38)
 ![Motion](https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff)
 ![Vitest](https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff)
+![Postgres](https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff)
+![Drizzle](https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff)
 
 <p>
   <img src="docs/readme/lang-es-active.svg" alt="Español" width="170">
@@ -58,8 +61,11 @@ Detalles de producto:
 | Animación | Motion 13 + CSS | Motion para lo interactivo (modal, toasts, indicadores deslizantes); CSS para lo predecible (entradas, dibujo de la gráfica). |
 | Gráficas | SVG propio | Control total del diseño (línea escalonada, punto *nadir*, objetivo) sin depender de una librería. |
 | Iconos | Tabler Icons | Importados uno a uno, así solo se incluyen los que se usan. |
-| Tests | Vitest | Tests unitarios rápidos de la lógica de precios. |
-| Despliegue | Cloudflare (previsto) | Con el adaptador OpenNext, como subdominio del portfolio. |
+| Base de datos | Neon (Postgres) + Drizzle ORM | Postgres sin servidor que se apaga sin uso; consultas tipadas y migraciones versionadas. |
+| Login | Better Auth + Google | Sesiones en nuestra propia base de datos, sin contraseñas. |
+| Servidor | Server Actions + Zod | Cada acción comprueba la sesión y valida los datos antes de tocar la base de datos. |
+| Tests | Vitest | Tests unitarios de la lógica de precios, la lectura de páginas y la seguridad de las URLs. |
+| Despliegue | Cloudflare Workers (OpenNext) | Despliegue continuo desde GitHub y un Cron Trigger que revisa los precios cada hora. |
 
 ## Arquitectura
 
@@ -140,7 +146,7 @@ npm install
 npm run dev
 ```
 
-La app queda en `http://localhost:3000`.
+La app queda en `http://localhost:3000`. La demo funciona sin configurar nada; para las cuentas reales, copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`.
 
 ## Scripts
 
@@ -151,21 +157,24 @@ npm run start      # sirve el build
 npm run lint       # ESLint
 npm run typecheck  # comprueba TypeScript sin generar archivos
 npm test           # tests unitarios con Vitest
+npm run db:migrate # aplica las migraciones a la base de datos
+npm run preview    # prueba la app en el entorno de Cloudflare
+npm run deploy     # despliega en Cloudflare Workers
 ```
 
 ## Hoja de ruta
 
 - [x] **Fase 0 · Base**: Next.js, TypeScript, Tailwind, sistema de diseño y tema claro/oscuro.
 - [x] **Fase 1 · MVP con demo**: todas las pantallas del diseño, demo sin registro, estados de carga, vacío y error, y tests de la lógica.
-- [ ] **Despliegue** en Cloudflare con CI en GitHub Actions.
-- [ ] **Cuentas de usuario** con inicio de sesión de Google y base de datos.
-- [ ] **Fase 2 · Motor de precios**: tarea programada que revisa los precios y guarda el histórico real.
+- [x] **Cuentas de usuario**: inicio de sesión con Google, base de datos y datos reales por usuario.
+- [x] **Fase 2 · Motor de precios**: lectura de la página del producto (JSON-LD / Open Graph), histórico real y revisión programada.
+- [ ] **Despliegue** en `nadir.aleixaj.com` (Cloudflare Workers).
 - [ ] **Fase 3 · Avisos**: emails con React Email + Resend y, después, Telegram.
 - [ ] **Fase 4 · Pulido**: tests de extremo a extremo con Playwright, PWA instalable y capturas en este README.
 
 ## Sobre los datos
 
-Nadir es un proyecto de portfolio y no tiene relación con ninguna de las tiendas o marcas que aparecen. En la demo, las tiendas y los productos son reales, pero **los precios son orientativos y el histórico está simulado**: no se consultan en directo. Las cuentas reales usarán datos reales obtenidos de fuentes que lo permitan.
+Nadir es un proyecto de portfolio y no tiene relación con ninguna de las tiendas o marcas que aparecen. En la demo, las tiendas y los productos son reales, pero **los precios son orientativos y el histórico está simulado**: no se consultan en directo. Las cuentas reales usarán datos reales obtenidos de fuentes que lo permitan. Las fotos de producto son de Amazon.es y pertenecen a sus respectivos titulares.
 
 ---
 

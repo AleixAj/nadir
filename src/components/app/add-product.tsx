@@ -12,10 +12,12 @@ import {
   SUPPORTED_STORES,
   type CatalogItem,
   type ListName,
+  type ProductIcon,
 } from "@/lib/demo-data";
 import { eur, parsePrice } from "@/lib/format";
 import { useIsMobile } from "@/lib/hooks";
-import { useDemo } from "@/lib/store";
+import { useDemo, useIsAccount } from "@/lib/store";
+import { previewProduct } from "@/server/actions";
 import { Button, cx, ProductThumb, Segmented, Skeleton } from "@/components/ui";
 
 type Mode = "url" | "search";
@@ -75,13 +77,34 @@ export function AddProductModal() {
   );
 }
 
+/** Lo que se enseña en la vista previa, venga del catálogo de la demo o de una tienda real. */
+interface Preview {
+  name: string;
+  image?: string | null;
+  icon: ProductIcon;
+  store: string;
+  price: number;
+  others?: string;
+  /** Solo demo */
+  catalog?: CatalogItem;
+  /** Solo cuenta real: URL ya normalizada por el servidor */
+  url?: string;
+}
+
+const fromCatalog = (c: CatalogItem): Preview => ({ ...c, catalog: c });
+
 function AddProductBody({ onClose }: { onClose: () => void }) {
   const addProduct = useDemo((s) => s.addProduct);
+  const addFromUrl = useDemo((s) => s.addFromUrl);
   const productsCount = useDemo((s) => s.products.length);
+  const isAccount = useIsAccount();
   const [mode, setMode] = useState<Mode>("url");
-  const [q, setQ] = useState(EXAMPLE_URL);
+  // En la demo se propone una URL de ejemplo; en una cuenta real, el campo empieza vacío
+  const [q, setQ] = useState(isAccount ? "" : EXAMPLE_URL);
   const [step, setStep] = useState<Step>("idle");
-  const [found, setFound] = useState<CatalogItem>(CATALOG[0]);
+  const [found, setFound] = useState<Preview>(fromCatalog(CATALOG[0]));
+  const [errMsg, setErrMsg] = useState("");
+  const [saving, setSaving] = useState(false);
   const [target, setTarget] = useState("159");
   const [list, setList] = useState<ListName>(CATALOG[0].list);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -96,16 +119,37 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     setStep("loading");
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      setFound(c);
+      setFound(fromCatalog(c));
       setList(c.list);
       setTarget(String(Math.round(c.price * 0.9)));
       setStep("preview");
     }, delay);
   };
 
-  const detect = (e?: React.FormEvent) => {
+  const detect = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (mode !== "url") return;
+    if (isAccount) {
+      // Cuenta real: el servidor lee la página de la tienda
+      if (!q.trim()) return;
+      setStep("loading");
+      try {
+        const r = await previewProduct(q.trim());
+        if (!r.ok) {
+          setErrMsg(r.error);
+          setStep("error");
+          return;
+        }
+        const d = r.data;
+        setFound({ name: d.name, image: d.image, icon: "desktop", store: d.store, price: d.price, url: d.url });
+        setTarget(String(Math.round(d.price * 0.9)));
+        setStep("preview");
+      } catch {
+        setErrMsg("No hemos podido conectar con el servidor.");
+        setStep("error");
+      }
+      return;
+    }
     const hit = detectFromUrl(q);
     if (hit) pick(hit, 1100);
     else {
@@ -115,10 +159,18 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const confirm = () => {
-    if (step !== "preview") return;
+  const confirm = async () => {
+    if (step !== "preview" || saving) return;
     const t = parsePrice(target);
-    addProduct({ ...productFromCatalog(found, t > 0 ? t : null, productsCount + 20), list });
+    const tgt = t > 0 ? t : null;
+    if (isAccount && found.url) {
+      setSaving(true);
+      const ok = await addFromUrl({ url: found.url, target: tgt, list });
+      setSaving(false);
+      if (ok) onClose();
+      return;
+    }
+    if (found.catalog) addProduct({ ...productFromCatalog(found.catalog, tgt, productsCount + 20), list });
     onClose();
   };
 
@@ -142,6 +194,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       <div className="flex flex-col gap-3.5 overflow-y-auto px-5 pb-5">
+        {!isAccount && (
         <Segmented<Mode>
           role="tablist"
           label="Cómo añadir"
@@ -157,6 +210,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
             { value: "search", label: "Buscar por nombre", icon: IconSearch },
           ]}
         />
+        )}
         <form onSubmit={detect} className="flex gap-2">
           <label className="relative flex flex-1 items-center">
             {isUrl ? (
@@ -171,7 +225,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                 setQ(e.target.value);
                 if (step !== "loading") setStep("idle");
               }}
-              placeholder={isUrl ? "https://tienda.es/producto" : "Nombre del producto"}
+              placeholder={isUrl ? "https://www.tienda.es/producto" : "Nombre del producto"}
               aria-label={isUrl ? "URL del producto" : "Nombre del producto"}
               aria-invalid={step === "error"}
               className={cx(
@@ -198,8 +252,9 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
           >
             {isUrl && step === "idle" && (
               <p className="m-0 text-xs text-text-3">
-                Pega la dirección de la página de un producto en {SUPPORTED_STORES.slice(0, -1).join(", ")} o{" "}
-                {SUPPORTED_STORES.at(-1)}.
+                {isAccount
+                  ? "Pega la dirección de la página de un producto. Funciona con las tiendas que publican los datos del producto en su web (la mayoría); algunas, como Amazon, no permiten leer sus páginas."
+                  : `Pega la dirección de la página de un producto en ${SUPPORTED_STORES.slice(0, -1).join(", ")} o ${SUPPORTED_STORES.at(-1)}.`}
               </p>
             )}
 
@@ -220,8 +275,9 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                 <div className="flex flex-col gap-1">
                   <strong className="font-semibold">No hemos podido leer esta URL</strong>
                   <span className="text-text-2">
-                    Comprueba que es la página de un producto concreto de una tienda compatible, o búscalo por su nombre.
+                    {isAccount ? errMsg : "Comprueba que es la página de un producto concreto de una tienda compatible, o búscalo por su nombre."}
                   </span>
+                  {!isAccount && (
                   <button
                     type="button"
                     onClick={() => {
@@ -233,6 +289,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                   >
                     Buscar por nombre
                   </button>
+                  )}
                 </div>
               </div>
             )}
@@ -249,7 +306,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                       i > 0 && "border-t border-border",
                     )}
                   >
-                    <ProductThumb icon={x.icon} size={44} />
+                    <ProductThumb icon={x.icon} image={x.image} size={44} />
                     <span className="flex flex-1 flex-col">
                       <span className="text-[13px] font-medium">{x.name}</span>
                       <span className="text-xs text-text-3">
@@ -267,7 +324,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
               <>
                 <div className="flex flex-col overflow-hidden rounded-[10px] border border-border">
                   <div className="flex gap-3.5 p-3.5">
-                    <ProductThumb icon={found.icon} size={80} radius={12} />
+                    <ProductThumb icon={found.icon} image={found.image ?? undefined} size={80} radius={12} />
                     <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
                       <span className="inline-flex items-center gap-[5px] text-xs font-medium text-down">
                         <IconCircleCheck size={14} aria-hidden />
@@ -278,7 +335,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                   <div className="border-t border-border bg-surface-2 px-3.5 py-2.5 text-xs text-text-2">
-                    También disponible en {found.others}
+                    {found.others ? `También disponible en ${found.others}` : "Guardaremos este precio y lo revisaremos cada día."}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -318,8 +375,8 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
         <Button variant="secondary" size="md" onClick={onClose}>
           Cancelar
         </Button>
-        <Button size="md" onClick={confirm} disabled={step !== "preview"}>
-          Añadir a mis productos
+        <Button size="md" onClick={confirm} disabled={step !== "preview" || saving}>
+          {saving ? "Añadiendo…" : "Añadir a mis productos"}
         </Button>
       </div>
     </>

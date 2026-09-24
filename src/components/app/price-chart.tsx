@@ -35,9 +35,19 @@ export function PriceChart({
     return () => ro.disconnect();
   }, []);
 
+  const endIso = product.endDate;
   const c = useMemo(
-    () => buildChart({ series: product.series, range, width, compact, allTimeMin: product.min, target }),
-    [product.series, product.min, range, width, compact, target],
+    () =>
+      buildChart({
+        series: product.series,
+        range,
+        width,
+        compact,
+        allTimeMin: product.min,
+        target,
+        end: endIso ? new Date(endIso) : undefined,
+      }),
+    [product.series, product.min, range, width, compact, target, endIso],
   );
 
   useEffect(() => {
@@ -147,7 +157,7 @@ export function PriceChart({
             className="pointer-events-none absolute z-[2] flex w-[172px] flex-col gap-[3px] rounded-lg border border-border bg-surface px-3 py-2.5 shadow-md"
             style={{ left: hx + 186 > c.W ? hx - 186 : hx + 14, top: Math.max(0, Math.min(hy - 40, c.H - 130)) }}
           >
-            <span className="text-[11px] text-text-3">{fdl(ago(c.len - 1 - h))}</span>
+            <span className="text-[11px] text-text-3">{fdl(ago(c.len - 1 - h, endIso ? new Date(endIso) : undefined))}</span>
             <span className="text-[15px] font-semibold tracking-[-0.01em]">{eur(hv)}</span>
             <span className="text-xs text-text-2">en {product.store}</span>
             {target != null && (

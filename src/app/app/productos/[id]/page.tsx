@@ -1,8 +1,9 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   IconAlertCircle,
   IconBrandTelegram,
@@ -13,16 +14,17 @@ import {
   IconExternalLink,
   IconMail,
   IconRefresh,
+  IconTrash,
   IconTruckDelivery,
 } from "@tabler/icons-react";
 import { PriceChart } from "@/components/app/price-chart";
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, ChangeBadge, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
 import { RANGES, type RangeKey, type Chart } from "@/lib/chart";
-import { minDate, rankOffers, shopsFor, type Product } from "@/lib/demo-data";
-import { eur, eurS, parsePrice, pct1, pctS, r2 } from "@/lib/format";
+import { minDate, rankOffers, shopsFor, type Product, type RankedOffer } from "@/lib/demo-data";
+import { eur, eurS, parsePrice, pct1, pctS, r2, sinceLabel } from "@/lib/format";
 import { useIsMobile } from "@/lib/hooks";
-import { useDemo } from "@/lib/store";
+import { useDemo, useIsAccount } from "@/lib/store";
 
 export default function FichaPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +51,8 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
   const storedOn = useDemo((s) => s.alerts[p.id]);
   const saveAlert = useDemo((s) => s.saveAlert);
   const showToast = useDemo((s) => s.showToast);
+  const isAccount = useIsAccount();
+  const checkNow = useDemo((s) => s.checkNow);
   const channels = useDemo((s) => s.channels);
   const setChannel = useDemo((s) => s.setChannel);
   const profile = useDemo((s) => s.profile);
@@ -69,12 +73,19 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
   const tn = parsePrice(target);
   const valid = !isNaN(tn) && tn > 0;
   const diff = valid ? r2(p.cur - tn) : 0;
-  const offers = rankOffers(shopsFor(p));
+  // Demo: varias tiendas de ejemplo. Cuenta real: la tienda de la URL que sigues
+  const offers: RankedOffer[] = isAccount
+    ? [
+        p.lastError
+          ? { name: p.store, error: true, best: false }
+          : { name: p.store, price: p.cur, ship: 0, total: p.cur, shipL: "Consulta el envío en la tienda", eta: "—", best: true },
+      ]
+    : rankOffers(shopsFor(p));
 
   return (
     <>
       <div {...enter(0, "flex flex-wrap items-start gap-4")}>
-        <ProductThumb icon={p.icon} size={88} radius={12} />
+        <ProductThumb icon={p.icon} image={p.image} size={88} radius={12} />
         <div className="flex min-w-[220px] flex-1 flex-col gap-2">
           <h1 className="m-0 text-[22px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance">{p.name}</h1>
           <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13px] text-text-2">
@@ -82,26 +93,16 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             <Meta icon={<IconCalendar size={14} aria-hidden />}>Seguido desde {p.since}</Meta>
             <Meta icon={<IconBuildingStore size={14} aria-hidden />}>{p.stores} tiendas</Meta>
             <Meta icon={<IconRefresh size={14} aria-hidden />}>
-              {p.checked === 0 ? "Revisado ahora" : `Revisado hace ${p.checked} min`}
+              Revisado {sinceLabel(p.checked)}
             </Meta>
           </div>
         </div>
         <div className="flex gap-2">
-          <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            className="press inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-[13px] font-medium whitespace-nowrap text-text shadow-sm hover:bg-surface-2"
-          >
+          <StoreLink p={p} className="press inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-[13px] font-medium whitespace-nowrap text-text shadow-sm hover:bg-surface-2">
             Ver en {p.store}
             <IconExternalLink size={14} className="text-text-3" aria-hidden />
-          </a>
-          <button
-            type="button"
-            aria-label="Más opciones"
-            className="press grid size-8 cursor-pointer place-items-center rounded-md border border-border-strong bg-surface text-text-2 shadow-sm hover:bg-surface-2"
-          >
-            <IconDots size={16} aria-hidden />
-          </button>
+          </StoreLink>
+          <ProductMenu p={p} />
         </div>
       </div>
 
@@ -192,9 +193,9 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                       <span className="min-w-[120px] font-medium text-text-2">{s.name}</span>
                       <span className="flex min-w-[220px] flex-1 items-center gap-1.5 text-up">
                         <IconAlertCircle size={15} aria-hidden />
-                        No disponible. No hemos podido revisar esta tienda desde las 09:12.
+                        {isAccount ? p.lastError : "No disponible. No hemos podido revisar esta tienda desde las 09:12."}
                       </span>
-                      <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => showToast(`Reintentando revisión de ${s.name}…`)}>
+                      <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => (isAccount ? checkNow(p.id) : showToast(`Reintentando revisión de ${s.name}…`))}>
                         Reintentar
                       </Button>
                     </div>
@@ -221,14 +222,13 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                       </span>
                       <span className="text-text-2">{s.eta}</span>
                       <span className="text-right font-semibold">{eur(s.total!)}</span>
-                      <a
-                        href="#"
-                        onClick={(e) => e.preventDefault()}
+                      <StoreLink
+                        p={isAccount ? p : undefined}
                         aria-label={"Ir a " + s.name}
                         className="grid size-7 place-items-center rounded-md text-text-3 transition-colors hover:bg-surface-3 hover:text-text"
                       >
                         <IconExternalLink size={15} aria-hidden />
-                      </a>
+                      </StoreLink>
                     </div>
                   ),
                 )}
@@ -244,7 +244,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                     <span className="font-semibold">{s.error ? "—" : eur(s.total!)}</span>
                   </div>
                   {s.error ? (
-                    <span className="text-xs text-up">No disponible desde las 09:12</span>
+                    <span className="text-xs text-up">{isAccount ? p.lastError : "No disponible desde las 09:12"}</span>
                   ) : (
                     <span className="text-xs text-text-3">
                       {eur(s.price!)} · {s.shipL} · {s.eta}
@@ -320,7 +320,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                 {(
                   [
                     ["email", "Email", profile.email, IconMail],
-                    ["telegram", "Telegram", "@ana_demo", IconBrandTelegram],
+                    ["telegram", "Telegram", isAccount ? "Próximamente" : "@aleix_demo", IconBrandTelegram],
                   ] as const
                 ).map(([k, label, sub, Ic]) => {
                   const on = channels[k];
@@ -403,5 +403,112 @@ function BestTag() {
       <IconCheck size={12} aria-hidden />
       Mejor
     </span>
+  );
+}
+
+/** Enlace a la página del producto en la tienda (en la demo no lleva a ningún sitio). */
+function StoreLink({ p, children, ...rest }: { p?: Product; children: React.ReactNode; className?: string; "aria-label"?: string }) {
+  if (p?.url) {
+    return (
+      <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" {...rest}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <a href="#" onClick={(e) => e.preventDefault()} {...rest}>
+      {children}
+    </a>
+  );
+}
+
+/** Menú "···" de la ficha: revisar el precio ahora o dejar de seguir el producto. */
+function ProductMenu({ p }: { p: Product }) {
+  const router = useRouter();
+  const checkNow = useDemo((s) => s.checkNow);
+  const deleteProduct = useDemo((s) => s.deleteProduct);
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState<"" | "check" | "delete">("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Cierra al hacer clic fuera o pulsar Escape
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const item = "flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-surface-2 disabled:cursor-wait disabled:opacity-60";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label="Más opciones"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open);
+          setConfirm(false);
+        }}
+        className="press grid size-8 cursor-pointer place-items-center rounded-md border border-border-strong bg-surface text-text-2 shadow-sm hover:bg-surface-2"
+      >
+        <IconDots size={16} aria-hidden />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, transform: "scale(0.96) translateY(-4px)" }}
+            animate={{ opacity: 1, transform: "scale(1) translateY(0px)" }}
+            exit={{ opacity: 0, transform: "scale(0.98)", transition: { duration: 0.1 } }}
+            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+            style={{ transformOrigin: "top right" }}
+            className="absolute top-10 right-0 z-20 flex w-56 flex-col rounded-lg border border-border bg-surface p-1 shadow-md"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!!busy}
+              className={item}
+              onClick={async () => {
+                setBusy("check");
+                await checkNow(p.id);
+                setBusy("");
+                setOpen(false);
+              }}
+            >
+              <IconRefresh size={16} className={cx("text-text-2", busy === "check" && "animate-spin")} aria-hidden />
+              {busy === "check" ? "Revisando…" : "Revisar el precio ahora"}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!!busy}
+              className={cx(item, "text-up")}
+              onClick={async () => {
+                if (!confirm) return setConfirm(true);
+                setBusy("delete");
+                const ok = await deleteProduct(p.id);
+                setBusy("");
+                if (ok) router.push("/app/productos");
+              }}
+            >
+              <IconTrash size={16} aria-hidden />
+              {busy === "delete" ? "Borrando…" : confirm ? "Pulsa otra vez para confirmar" : "Dejar de seguir"}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   IconArrowLeft,
@@ -20,8 +20,10 @@ import {
   IconSettings,
   IconSun,
   IconChevronRight,
+  IconX,
 } from "@tabler/icons-react";
-import { useDemo, useProducts, type LoadState } from "@/lib/store";
+import type { AccountData } from "@/lib/account-types";
+import { useDemo, useIsAccount, useProducts, type LoadState } from "@/lib/store";
 import { useTheme } from "@/components/theme";
 import { Button, cx, Logo, LogoMark } from "@/components/ui";
 import { AddProductModal } from "./add-product";
@@ -40,31 +42,49 @@ const LISTS = [
 
 const isActive = (path: string, href: string) => (href === "/app" ? path === "/app" : path.startsWith(href));
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, account }: { children: ReactNode; account: AccountData | null }) {
   const params = useSearchParams();
   const embed = params.get("embed") === "1";
   const setLoadState = useDemo((s) => s.setLoadState);
-  const [booting, setBooting] = useState(!embed);
+  const isAccount = useIsAccount();
+  const wantsAccount = !!account && params.get("demo") !== "1";
+  const [demoBooting, setDemoBooting] = useState(!embed && !wantsAccount);
+  // Con cuenta, "cargando" dura hasta que sus datos entran en el estado
+  const booting = wantsAccount ? !isAccount : demoBooting;
+  const mainRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
 
-  // Carga inicial: recupera la demo guardada y enseña los esqueletos un momento.
+  // El scroll está en <main>, no en la ventana: al cambiar de pantalla, vuelve arriba
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [pathname]);
+
+  // Carga inicial. Con sesión: datos reales (ya vienen del servidor).
+  // Sin sesión (o con ?demo=1): recupera la demo guardada y enseña los esqueletos un momento.
   // ?estado=vacio|cargando|error permite ver cada estado de la interfaz.
   useEffect(() => {
+    if (wantsAccount && account) {
+      useDemo.getState().enterAccount(account);
+      return;
+    }
     useDemo.persist.rehydrate();
     const e = params.get("estado") as LoadState | null;
     if (e) setLoadState(e);
     if (embed) return;
-    const t = setTimeout(() => setBooting(false), 650);
+    const t = setTimeout(() => setDemoBooting(false), 650);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <BootContext booting={booting}>
-      <div className="flex min-h-screen flex-col bg-bg text-text">
-        {!embed && <DemoBanner />}
+      {/* La app ocupa exactamente la pantalla: franja arriba, barra lateral fija
+          y solo el contenido (main) hace scroll. */}
+      <div className="flex h-dvh flex-col overflow-hidden bg-bg text-text">
+        {!embed && !isAccount && <DemoBanner />}
         <div className="flex min-h-0 flex-1">
           <Sidebar />
-          <main className="flex min-w-0 flex-1 flex-col">
+          <main ref={mainRef} className="flex min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
             <DesktopHeader />
             <MobileHeader />
             <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-4 pt-4 pb-24 desk:px-8 desk:pt-7 desk:pb-14">
@@ -96,7 +116,7 @@ function DemoBanner() {
   return (
     <div
       role="status"
-      className="flex min-h-8 items-center justify-center gap-2 border-b border-border bg-surface-2 px-3 py-1.5 text-center text-xs text-text-2"
+      className="flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-border bg-surface-2 px-3 py-1.5 text-center text-xs text-text-2"
     >
       <IconEye size={14} aria-hidden />
       <span>Estás viendo una cuenta de demostración</span>
@@ -118,6 +138,8 @@ function Sidebar() {
   const filter = useDemo((s) => s.filter);
   const setFilter = useDemo((s) => s.setFilter);
   const profile = useDemo((s) => s.profile);
+  const accountUser = useDemo((s) => s.account);
+  const isAccount = useIsAccount();
   const activeCount = products.filter((p) => alerts[p.id] && p.alert !== "alcanzado").length;
   const onProducts = path === "/app/productos";
 
@@ -128,7 +150,7 @@ function Sidebar() {
 
   return (
     <div className="hidden w-[244px] shrink-0 border-r border-border bg-surface-2 desk:block">
-      <aside aria-label="Navegación principal" className="sticky top-0 flex h-screen flex-col gap-5 overflow-y-auto px-3 py-3.5">
+      <aside aria-label="Navegación principal" className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-3.5">
         <Link href="/" aria-label="Nadir, inicio" className="flex items-center px-2 py-1 text-text">
           <Logo />
         </Link>
@@ -157,7 +179,7 @@ function Sidebar() {
                 )}
                 <Ic size={17} aria-hidden className="relative" />
                 <span className="relative flex-1">{n.label}</span>
-                {n.href === "/app/tiendas" && (
+                {n.href === "/app/tiendas" && (!isAccount || products.some((p) => p.lastError)) && (
                   <span title="1 tienda con errores" className="relative size-1.5 rounded-full bg-up" />
                 )}
                 {counts[n.href] && (
@@ -198,7 +220,7 @@ function Sidebar() {
           })}
         </div>
         <div className="flex-1" />
-        {products.length > 0 && (
+        {!isAccount && products.length > 0 && (
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-border bg-surface p-3">
             <div className="flex items-center gap-1.5 text-xs text-text-2">
               <IconPigMoney size={15} className="text-brand" aria-hidden />
@@ -211,9 +233,7 @@ function Sidebar() {
           </div>
         )}
         <Link href="/app/ajustes" className="press flex items-center gap-2.5 rounded-lg p-2 text-left hover:bg-surface-3">
-          <span className="grid size-[30px] place-items-center rounded-full bg-brand-soft text-xs font-semibold text-brand-text">
-            {initials(profile.name)}
-          </span>
+          <Avatar name={profile.name} image={accountUser?.image} />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[13px] font-medium">{profile.name}</span>
             <span className="text-xs text-text-3">Plan gratuito</span>
@@ -222,6 +242,24 @@ function Sidebar() {
         </Link>
       </aside>
     </div>
+  );
+}
+
+/** Foto de Google si la hay; si no, las iniciales. */
+export function Avatar({ name, image, size = 30 }: { name: string; image?: string | null; size?: number }) {
+  if (image) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- foto externa de Google, ya optimizada
+      <img src={image} alt="" width={size} height={size} referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+    );
+  }
+  return (
+    <span
+      className="grid shrink-0 place-items-center rounded-full bg-brand-soft text-xs font-semibold text-brand-text"
+      style={{ width: size, height: size }}
+    >
+      {initials(name)}
+    </span>
   );
 }
 
@@ -404,10 +442,10 @@ function Toaster() {
             animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
             exit={{ opacity: 0, transform: "translateY(6px) scale(0.98)", transition: { duration: 0.15 } }}
             transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
-            className="flex items-center gap-2.5 rounded-lg bg-toast-bg py-2.5 pr-3.5 pl-2.5 text-[13px] font-medium text-toast-text shadow-lg"
+            className="flex max-w-[min(420px,calc(100vw-32px))] items-center gap-2.5 rounded-lg bg-toast-bg py-2.5 pr-3.5 pl-2.5 text-[13px] font-medium text-toast-text shadow-lg"
           >
-            <span className="grid size-5 place-items-center rounded-full bg-[#16a34a] text-white">
-              <IconCheck size={13} aria-hidden />
+            <span className={cx("grid size-5 shrink-0 place-items-center rounded-full text-white", toast.tone === "error" ? "bg-[#dc2626]" : "bg-[#16a34a]")}>
+              {toast.tone === "error" ? <IconX size={13} aria-hidden /> : <IconCheck size={13} aria-hidden />}
             </span>
             {toast.msg}
           </motion.div>
