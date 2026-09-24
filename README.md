@@ -1,4 +1,4 @@
-<img src="public/icon.svg" alt="" width="56">
+<img src="public/logo-256.png" alt="Nadir" width="64">
 
 # Nadir
 

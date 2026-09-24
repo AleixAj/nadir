@@ -32,13 +32,18 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 
 /* ─── Marca ─────────────────────────────────────────────────── */
 
+/** Logo de Nadir. Se usa la versión de 64 px para tamaños pequeños y la de 256 para el resto. */
 export function LogoMark({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-      <rect width="24" height="24" rx="6" fill="#ea580c" />
-      <path d="M5 7.5c3 0 4 8.5 7 8.5s4-8.5 7-8.5" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="12" cy="16" r="2.3" fill="#fff" />
-    </svg>
+    <Image
+      src={size <= 32 ? "/logo-64.png" : "/logo-256.png"}
+      alt=""
+      width={size}
+      height={size}
+      className="shrink-0 select-none"
+      draggable={false}
+      priority
+    />
   );
 }
 

@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   title: { default: "Nadir · Compra en el punto más bajo", template: "%s · Nadir" },
   description:
     "Nadir vigila el precio de los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del precio que tú eliges.",
-  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {
