@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A2420"/>
+      <stop offset="1" stop-color="#171311"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="312" height="56" rx="16" fill="url(#bg)"/>
+  <rect x="5" y="5" width="310" height="54" rx="15" fill="none" stroke="#EA580C" stroke-width="2"/>
+
+  <!-- Globe icon -->
+  <g transform="translate(26 18)" fill="none" stroke="#FB923C" stroke-width="2.2" stroke-linecap="round">
+    <circle cx="14" cy="14" r="12"/>
+    <path d="M2 14h24M14 2c3.5 3.6 5 7.6 5 12s-1.5 8.4-5 12c-3.5-3.6-5-7.6-5-12s1.5-8.4 5-12z"/>
+  </g>
+
+  <text x="68" y="31" font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#fff">Open the website</text>
+  <text x="68" y="48" font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif" font-size="12.5" fill="#fff" fill-opacity=".65">Sign in with Google or email</text>
+</svg>

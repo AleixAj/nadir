@@ -1,31 +1,56 @@
-<div align="center">
+<p align="center">
+  <img src="public/logo-256.png" width="128" alt="Nadir">
+</p>
 
-<img src="public/logo-256.png" alt="Nadir" width="96">
+<h1 align="center">Nadir</h1>
 
-# Nadir
-
-**Compra al punt més baix.**
-
-[Web](https://nadir.aleixaj.com) · [Provar la demo](https://nadir.aleixaj.com/app?demo=1)
-
-![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=fff)
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=111)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=fff)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=fff)
-![Zustand](https://img.shields.io/badge/Zustand-5-443e38)
-![Motion](https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff)
-![Vitest](https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff)
-![Postgres](https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff)
-![Drizzle](https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff)
-
-<p>
+<p align="center">
+  <sub>Llegeix aquesta pàgina en:</sub>
+</p>
+<p align="center">
   <a href="README.md"><img src="docs/readme/lang-es.svg" alt="Español" width="170"></a>
   <a href="README.en.md"><img src="docs/readme/lang-en.svg" alt="English" width="170"></a>
   <img src="docs/readme/lang-ca-active.svg" alt="Català" width="170">
 </p>
 
-</div>
+<p align="center">
+  Compara el preu d'un producte a diverses botigues, en desa l'històric<br>i t'avisa quan baixa del preu que tu tries.
+</p>
+
+<p align="center">
+  <a href="https://nadir.aleixaj.com/app?demo=1">
+    <img src="docs/readme/btn-demo-ca.svg" alt="Provar la demo" width="460">
+  </a>
+</p>
+<p align="center">
+  <a href="https://nadir.aleixaj.com/entrar">
+    <img src="docs/readme/btn-web-ca.svg" alt="Obrir la web" width="320">
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=fff" alt="Next.js">
+  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=111" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=fff" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=fff" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Zustand-5-443e38" alt="Zustand">
+  <img src="https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff" alt="Motion">
+  <img src="https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff" alt="Vitest">
+  <img src="https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff" alt="Postgres">
+  <img src="https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111" alt="Drizzle">
+  <img src="https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff" alt="Cloudflare">
+</p>
+
+## Així es veu
+
+<p align="center">
+  <img src="docs/screenshots/ficha.webp" alt="Fitxa de producte: històric amb el punt més baix marcat, comparativa de botigues i alerta de preu.">
+</p>
+<p align="center">
+  <sub>Fitxa de producte: històric amb el punt més baix marcat, comparativa de botigues i alerta de preu.</sub>
+</p>
+
+---
 
 Nadir és un monitor de preus: segueix els productes que t'interessen en diverses botigues, en desa l'historial i t'avisa quan baixen del preu que tu tries.
 
@@ -61,6 +86,36 @@ Les grans botigues (Amazon, PcComponentes, MediaMarkt…) no permeten llegir les
 4. Es treuen els productes que es queden amb una sola botiga (sense comparativa no aporten). Les fotos es converteixen a WebP (`public/catalog/`) i tot es desa a Postgres.
 
 El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (gairebé 1.500 preus), sobretot tecnologia. La comparativa de la fitxa s'ordena pel preu final, amb enviament. Quan segueixes un producte, el preu parteix del real i **evoluciona de manera simulada** a cada revisió automàtica, amb canvis petits i ofertes de tant en tant. La web ho indica sempre amb l'avís «Entorn de prova» i l'etiqueta «Preu simulat».
+
+## Captures
+
+<p align="center">
+  <img src="docs/screenshots/landing.webp" alt="Landing">
+</p>
+<p align="center">
+  <sub>Landing</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/panel.webp" alt="Tauler amb les baixades de la setmana i els productes a prop de l'objectiu">
+</p>
+<p align="center">
+  <sub>Tauler amb les baixades de la setmana i els productes a prop de l'objectiu</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/productos.webp" alt="Els meus productes, amb filtres per llista i minigràfiques de 7 dies">
+</p>
+<p align="center">
+  <sub>Els meus productes, amb filtres per llista i minigràfiques de 7 dies</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/buscar.webp" alt="Cercar i afegir un producte pel seu nom">
+</p>
+<p align="center">
+  <sub>Cercar i afegir un producte pel seu nom</sub>
+</p>
 
 ## Stack tècnic
 
@@ -175,7 +230,7 @@ npm run deploy        # desplega a Cloudflare Workers
 - [x] **Desplegament** a [nadir.aleixaj.com](https://nadir.aleixaj.com) amb desplegament continu.
 - [ ] **Correus** amb React Email + Resend: avisos de preu, verificació del correu i recuperar la contrasenya. Després, Telegram.
 - [ ] **Dades de producció**: catàlegs d'afiliats de les botigues en lloc del catàleg de prova.
-- [ ] **Tests d'extrem a extrem** amb Playwright i captures en aquest README.
+- [ ] **Tests d'extrem a extrem** amb Playwright.
 
 ## Sobre les dades
 

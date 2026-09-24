@@ -1,31 +1,56 @@
-<div align="center">
+<p align="center">
+  <img src="public/logo-256.png" width="128" alt="Nadir">
+</p>
 
-<img src="public/logo-256.png" alt="Nadir" width="96">
+<h1 align="center">Nadir</h1>
 
-# Nadir
-
-**Buy at the lowest point.**
-
-[Website](https://nadir.aleixaj.com) · [Try the demo](https://nadir.aleixaj.com/app?demo=1)
-
-![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=fff)
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=111)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=fff)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=fff)
-![Zustand](https://img.shields.io/badge/Zustand-5-443e38)
-![Motion](https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff)
-![Vitest](https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff)
-![Postgres](https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff)
-![Drizzle](https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff)
-
-<p>
+<p align="center">
+  <sub>Read this page in:</sub>
+</p>
+<p align="center">
   <a href="README.md"><img src="docs/readme/lang-es.svg" alt="Español" width="170"></a>
   <img src="docs/readme/lang-en-active.svg" alt="English" width="170">
   <a href="README.ca.md"><img src="docs/readme/lang-ca.svg" alt="Català" width="170"></a>
 </p>
 
-</div>
+<p align="center">
+  Compares the price of a product across several stores, keeps its history<br>and alerts you when it drops below the price you choose.
+</p>
+
+<p align="center">
+  <a href="https://nadir.aleixaj.com/app?demo=1">
+    <img src="docs/readme/btn-demo-en.svg" alt="Try the demo" width="460">
+  </a>
+</p>
+<p align="center">
+  <a href="https://nadir.aleixaj.com/entrar">
+    <img src="docs/readme/btn-web-en.svg" alt="Open the website" width="320">
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=fff" alt="Next.js">
+  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=111" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=fff" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=fff" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Zustand-5-443e38" alt="Zustand">
+  <img src="https://img.shields.io/badge/Motion-13-ea580c?logo=framer&logoColor=fff" alt="Motion">
+  <img src="https://img.shields.io/badge/Vitest-5-6e9f18?logo=vitest&logoColor=fff" alt="Vitest">
+  <img src="https://img.shields.io/badge/Neon-Postgres-00e599?logo=postgresql&logoColor=fff" alt="Postgres">
+  <img src="https://img.shields.io/badge/Drizzle-ORM-c5f74f?logo=drizzle&logoColor=111" alt="Drizzle">
+  <img src="https://img.shields.io/badge/Cloudflare-Workers-f38020?logo=cloudflare&logoColor=fff" alt="Cloudflare">
+</p>
+
+## How it looks
+
+<p align="center">
+  <img src="docs/screenshots/ficha.webp" alt="Product page: price history with the lowest point marked, store comparison and price alert.">
+</p>
+<p align="center">
+  <sub>Product page: price history with the lowest point marked, store comparison and price alert.</sub>
+</p>
+
+---
 
 Nadir is a price tracker: it follows the products you care about across several stores, keeps their price history and alerts you when they drop below the price you choose.
 
@@ -61,6 +86,36 @@ Large stores (Amazon, PcComponentes, MediaMarkt…) don't allow their pages to b
 4. Products left with a single store are removed (no comparison, no value). Photos are converted to WebP (`public/catalog/`) and everything is stored in Postgres.
 
 The result is **347 real products, all with prices from 2 or more stores** (almost 1,500 prices), mostly tech. The comparison on the product page is sorted by final price, shipping included. When you track a product, its price starts from the real one and **evolves in a simulated way** on every automatic check, with small changes and occasional deals. The site always says so, with a “test environment” notice and a “simulated price” label.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/landing.webp" alt="Landing page">
+</p>
+<p align="center">
+  <sub>Landing page</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/panel.webp" alt="Dashboard with this week's drops and products close to their target">
+</p>
+<p align="center">
+  <sub>Dashboard with this week's drops and products close to their target</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/productos.webp" alt="My products, with list filters and 7-day sparklines">
+</p>
+<p align="center">
+  <sub>My products, with list filters and 7-day sparklines</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/buscar.webp" alt="Search and add a product by name">
+</p>
+<p align="center">
+  <sub>Search and add a product by name</sub>
+</p>
 
 ## Tech stack
 
@@ -175,7 +230,7 @@ npm run deploy        # deploy to Cloudflare Workers
 - [x] **Deployment** at [nadir.aleixaj.com](https://nadir.aleixaj.com) with continuous deployment.
 - [ ] **Emails** with React Email + Resend: price alerts, email verification and password reset. Then Telegram.
 - [ ] **Production data**: store affiliate catalogs instead of the test catalog.
-- [ ] **End-to-end tests** with Playwright and screenshots in this README.
+- [ ] **End-to-end tests** with Playwright.
 
 ## About the data
 
