@@ -43,6 +43,13 @@
       "when": 1790290677908,
       "tag": "0005_drop_product_list",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790303159332,
+      "tag": "0006_rate_limit",
+      "breakpoints": true
     }
   ]
 }

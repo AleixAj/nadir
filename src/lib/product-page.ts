@@ -75,7 +75,10 @@ export function checkPublicUrl(input: string): { ok: true; url: URL } | { ok: fa
 
 // Prices
 
-const toCents = (n: number) => (Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null);
+// Anything above this is surely a parsing mistake (and would not fit the database column)
+const MAX_PRICE_EUROS = 1_000_000;
+
+const toCents = (n: number) => (Number.isFinite(n) && n > 0 && n <= MAX_PRICE_EUROS ? Math.round(n * 100) : null);
 
 /**
  * Converts a price written in any format to cents:
@@ -108,10 +111,15 @@ export function parsePriceToCents(value: unknown): number | null {
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
+// Number entity to its character. Invalid numbers are dropped instead of throwing
+function fromCode(code: number) {
+  return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
+}
+
 export function decodeEntities(s: string): string {
   return s
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => fromCode(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => fromCode(parseInt(h, 16)))
     .replace(/&([a-z]+);/gi, (m, n) => ENTITIES[n.toLowerCase()] ?? m);
 }
 

@@ -2,7 +2,7 @@
 
 // Server Actions called directly from the UI.
 // Every action checks the session, and that the product belongs to the user.
-import { and, asc, count, desc, eq, like, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, isNull, like, lt, or, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/db";
@@ -48,7 +48,7 @@ const toCents = (euros: number) => Math.round(euros * 100);
 
 // If the price is already at or below the target when an alert is saved or
 // turned on, create the alert now instead of waiting for the next drop.
-// Skip it if there's already an alert for that same target.
+// Skip it if we already sent one for this target and the price hasn't gone back up since.
 async function alertIfReached(productId: string, targetCents: number) {
   const [last] = await db
     .select({ priceCents: pricePoint.priceCents })
@@ -57,12 +57,28 @@ async function alertIfReached(productId: string, targetCents: number) {
     .orderBy(desc(pricePoint.checkedAt))
     .limit(1);
   if (!last || last.priceCents > targetCents) return;
-  const [dup] = await db
-    .select({ id: alertEvent.id })
+  const [lastAlert] = await db
+    .select({ createdAt: alertEvent.createdAt })
     .from(alertEvent)
     .where(and(eq(alertEvent.productId, productId), eq(alertEvent.targetCents, targetCents)))
+    .orderBy(desc(alertEvent.createdAt))
     .limit(1);
-  if (!dup) await db.insert(alertEvent).values({ productId, priceCents: last.priceCents, targetCents });
+  if (lastAlert) {
+    // Was the price above the target at some point after that alert?
+    const [wentUp] = await db
+      .select({ id: pricePoint.id })
+      .from(pricePoint)
+      .where(
+        and(
+          eq(pricePoint.productId, productId),
+          gt(pricePoint.checkedAt, lastAlert.createdAt),
+          gt(pricePoint.priceCents, targetCents),
+        ),
+      )
+      .limit(1);
+    if (!wentUp) return;
+  }
+  await db.insert(alertEvent).values({ productId, priceCents: last.priceCents, targetCents });
 }
 
 // Returns the list id only if that list belongs to the user (otherwise no list)
@@ -74,6 +90,30 @@ async function ownListId(userId: string, listId: string | null) {
     .where(and(eq(userList.id, listId), eq(userList.userId, userId)));
   return row?.id ?? null;
 }
+
+// Saves the first prices of a new product. If that fails, the product is removed
+// again so it never shows up without a price.
+async function savePricesOrUndo(productId: string, points: { priceCents: number; checkedAt: Date }[]) {
+  try {
+    await db.insert(pricePoint).values(points.map((pt) => ({ productId, ...pt })));
+    return true;
+  } catch (err) {
+    console.error("Could not save the first price", productId, err);
+    await db.delete(product).where(eq(product.id, productId));
+    return false;
+  }
+}
+
+// Two requests at the same time could both pass the limit check, so we count
+// again after inserting and undo it if the user went over the limit.
+async function overLimitAfterInsert(userId: string, productId: string) {
+  const [{ n }] = await db.select({ n: count() }).from(product).where(eq(product.userId, userId));
+  if (n <= PRODUCT_LIMIT) return false;
+  await db.delete(product).where(eq(product.id, productId));
+  return true;
+}
+
+const SAVE_ERROR = "No hemos podido guardar el producto. Inténtalo de nuevo.";
 
 const idSchema = z.string().uuid();
 const listIdSchema = z.string().min(1).max(64).nullable();
@@ -151,7 +191,10 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
   if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
 
   const productId = inserted[0].id;
-  await db.insert(pricePoint).values({ productId, priceCents: res.info.priceCents, checkedAt: now });
+  if (await overLimitAfterInsert(user.id, productId)) return { ok: false, error: LIMIT_ERROR };
+  if (!(await savePricesOrUndo(productId, [{ priceCents: res.info.priceCents, checkedAt: now }]))) {
+    return { ok: false, error: SAVE_ERROR };
+  }
   if (targetCents != null) await alertIfReached(productId, targetCents);
   return fresh(user);
 }
@@ -200,11 +243,21 @@ export async function checkNow(id: string): Promise<ActionResult<AccountData> & 
   const user = await requireUser();
   if (!user) return NO_SESSION;
   if (!idSchema.safeParse(id).success) return { ok: false, error: "Producto no válido." };
-  const p = await ownProduct(user.id, id);
-  if (!p) return { ok: false, error: "No encontramos este producto." };
-  if (p.lastCheckedAt && Date.now() - p.lastCheckedAt.getTime() < 60_000) {
-    return { ok: false, error: "Acabamos de revisarlo. Prueba de nuevo en un minuto." };
-  }
+  if (!(await ownProduct(user.id, id))) return { ok: false, error: "No encontramos este producto." };
+  // Mark it as checked only if the last check was over a minute ago. Doing it in one
+  // update means several clicks at the same time can't all start a check.
+  const [p] = await db
+    .update(product)
+    .set({ lastCheckedAt: new Date() })
+    .where(
+      and(
+        eq(product.id, id),
+        eq(product.userId, user.id),
+        or(isNull(product.lastCheckedAt), lt(product.lastCheckedAt, new Date(Date.now() - 60_000))),
+      ),
+    )
+    .returning();
+  if (!p) return { ok: false, error: "Acabamos de revisarlo. Prueba de nuevo en un minuto." };
   const result = await checkProduct(p);
   const data = await getAccountData(user);
   return { ok: true, data, checkError: result.ok ? undefined : result.error };
@@ -339,8 +392,9 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
   if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
 
   const productId = inserted[0].id;
+  if (await overLimitAfterInsert(user.id, productId)) return { ok: false, error: LIMIT_ERROR };
   const history = simulatedHistory(best.priceCents, catalogId, now);
-  await db.insert(pricePoint).values(history.map((h) => ({ productId, ...h })));
+  if (!(await savePricesOrUndo(productId, history))) return { ok: false, error: SAVE_ERROR };
   if (targetCents != null) await alertIfReached(productId, targetCents);
   return fresh(user);
 }
@@ -411,6 +465,12 @@ const listSchema = z.object({
 const LIST_INPUT_ERROR = "Escribe un nombre de 1 a 30 caracteres y elige un color.";
 const LIST_NAME_TAKEN = "Ya tienes una lista con ese nombre.";
 
+// Postgres error 23505: a unique index rejected the row (e.g. two lists with the same name)
+function isUniqueViolation(err: unknown) {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e?.code === "23505" || e?.cause?.code === "23505";
+}
+
 // True if the user already has another list with this name (ignoring case)
 async function listNameTaken(userId: string, name: string, exceptId?: string) {
   const rows = await db.select({ id: userList.id, name: userList.name }).from(userList).where(eq(userList.userId, userId));
@@ -427,7 +487,12 @@ export async function createList(input: z.input<typeof listSchema>): Promise<Act
   if (n >= LIST_LIMIT) return { ok: false, error: `Puedes tener hasta ${LIST_LIMIT} listas.` };
   if (await listNameTaken(user.id, parsed.data.name)) return { ok: false, error: LIST_NAME_TAKEN };
 
-  await db.insert(userList).values({ userId: user.id, ...parsed.data });
+  try {
+    await db.insert(userList).values({ userId: user.id, ...parsed.data });
+  } catch (err) {
+    if (isUniqueViolation(err)) return { ok: false, error: LIST_NAME_TAKEN };
+    throw err;
+  }
   return fresh(user);
 }
 
@@ -435,13 +500,18 @@ export async function updateList(input: z.input<typeof listSchema> & { id: strin
   const user = await requireUser();
   if (!user) return NO_SESSION;
   const parsed = listSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: LIST_INPUT_ERROR };
+  if (!parsed.success || !listIdSchema.safeParse(input.id).success) return { ok: false, error: LIST_INPUT_ERROR };
   if (await listNameTaken(user.id, parsed.data.name, input.id)) return { ok: false, error: LIST_NAME_TAKEN };
 
-  await db
-    .update(userList)
-    .set(parsed.data)
-    .where(and(eq(userList.id, input.id), eq(userList.userId, user.id)));
+  try {
+    await db
+      .update(userList)
+      .set(parsed.data)
+      .where(and(eq(userList.id, input.id), eq(userList.userId, user.id)));
+  } catch (err) {
+    if (isUniqueViolation(err)) return { ok: false, error: LIST_NAME_TAKEN };
+    throw err;
+  }
   return fresh(user);
 }
 
@@ -449,6 +519,7 @@ export async function updateList(input: z.input<typeof listSchema> & { id: strin
 export async function deleteList(id: string): Promise<ActionResult> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!listIdSchema.safeParse(id).success) return { ok: false, error: "Lista no válida." };
   await db.delete(userList).where(and(eq(userList.id, id), eq(userList.userId, user.id)));
   return fresh(user);
 }

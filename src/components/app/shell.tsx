@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
   IconArrowLeft,
   IconBell,
@@ -25,7 +32,12 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import type { AccountData } from "@/lib/account-types";
-import { useDemo, useIsAccount, useProducts, type LoadState } from "@/lib/store";
+import {
+  useDemo,
+  useIsAccount,
+  useProducts,
+  type LoadState,
+} from "@/lib/store";
 import { useTheme } from "@/components/theme";
 import { Button, cx, Logo, LogoMark } from "@/components/ui";
 import { AddProductModal } from "./add-product";
@@ -33,13 +45,24 @@ import { ListDialog } from "./list-dialog";
 
 const NAV = [
   { href: "/app", label: "Panel", short: "Panel", icon: IconLayoutDashboard },
-  { href: "/app/productos", label: "Mis productos", short: "Productos", icon: IconPackage },
+  {
+    href: "/app/productos",
+    label: "Mis productos",
+    short: "Productos",
+    icon: IconPackage,
+  },
   { href: "/app/alertas", label: "Alertas", short: "Alertas", icon: IconBell },
-  { href: "/app/tiendas", label: "Tiendas", short: "Tiendas", icon: IconBuildingStore },
+  {
+    href: "/app/tiendas",
+    label: "Tiendas",
+    short: "Tiendas",
+    icon: IconBuildingStore,
+  },
 ];
 
 // "/app" only matches itself; other links also match their sub-pages
-const isActive = (path: string, href: string) => (href === "/app" ? path === "/app" : path.startsWith(href));
+const isActive = (path: string, href: string) =>
+  href === "/app" ? path === "/app" : path.startsWith(href);
 
 const BANNER_CLASS =
   "relative flex min-h-8 shrink-0 items-center justify-center gap-2 border-b border-brand-soft-border/60 bg-[linear-gradient(90deg,transparent,var(--brand-soft),transparent)] px-3 py-1.5 text-center text-xs text-text-2";
@@ -51,12 +74,22 @@ function useActiveAlertCount() {
   return products.filter((p) => alerts[p.id] && p.alert !== "alcanzado").length;
 }
 
-export function AppShell({ children, account }: { children: ReactNode; account: AccountData | null }) {
+export function AppShell({
+  children,
+  account,
+}: {
+  children: ReactNode;
+  account: AccountData | null;
+}) {
   const params = useSearchParams();
   const embed = params.get("embed") === "1";
   const setLoadState = useDemo((s) => s.setLoadState);
   const isAccount = useIsAccount();
-  const wantsAccount = !!account && params.get("demo") !== "1";
+  // A signed-in user who opens ?demo=1 stays in the demo while moving around the app
+  // (the sidebar links don't carry ?demo=1). "Volver a mi cuenta" reloads the page.
+  const [demoChosen, setDemoChosen] = useState(params.get("demo") === "1");
+  if (params.get("demo") === "1" && !demoChosen) setDemoChosen(true);
+  const wantsAccount = !!account && !demoChosen;
   const [demoBooting, setDemoBooting] = useState(!embed && !wantsAccount);
   // With an account, loading lasts until its data is in the store
   const booting = wantsAccount ? !isAccount : demoBooting;
@@ -68,7 +101,8 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
     mainRef.current?.scrollTo(0, 0);
   }, [pathname]);
 
-  // First load. Signed in: real data that already came from the server.
+  // First load, and again if a signed-in user opens the demo later.
+  // Signed in: real data that already came from the server.
   // Signed out (or ?demo=1): load the saved demo and show skeletons for a moment.
   // ?estado=vacio|cargando|error forces each UI state.
   useEffect(() => {
@@ -83,45 +117,57 @@ export function AppShell({ children, account }: { children: ReactNode; account: 
     const t = setTimeout(() => setDemoBooting(false), 650);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [wantsAccount]);
 
   return (
     <BootContext booting={booting}>
-      {/* Full-screen layout: banner on top, fixed sidebar, only <main> scrolls */}
-      <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-text">
-        {/* Soft orange glow behind the content */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 -z-0 opacity-70 dark:opacity-100"
-          style={{
-            background:
-              "radial-gradient(900px 420px at 85% -8%, color-mix(in oklab, var(--brand) 11%, transparent), transparent 70%), radial-gradient(700px 380px at 10% 110%, color-mix(in oklab, var(--brand) 6%, transparent), transparent 70%)",
-          }}
-        />
-        {!embed && !isAccount && <DemoBanner />}
-        {!embed && isAccount && <TestEnvBanner />}
-        <div className="relative flex min-h-0 flex-1">
-          <Sidebar />
-          <main ref={mainRef} className="flex min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-            <DesktopHeader />
-            <MobileHeader />
-            <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-4 pt-4 pb-24 desk:px-8 desk:pt-7 desk:pb-14">
-              {children}
-            </div>
-          </main>
+      {/* reducedMotion="user": Motion animations follow the system "reduce motion" setting */}
+      <MotionConfig reducedMotion="user">
+        {/* Full-screen layout: banner on top, fixed sidebar, only <main> scrolls */}
+        <div className="relative flex h-dvh flex-col overflow-hidden bg-bg text-text">
+          {/* Soft orange glow behind the content */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-0 opacity-70 dark:opacity-100"
+            style={{
+              background:
+                "radial-gradient(900px 420px at 85% -8%, color-mix(in oklab, var(--brand) 11%, transparent), transparent 70%), radial-gradient(700px 380px at 10% 110%, color-mix(in oklab, var(--brand) 6%, transparent), transparent 70%)",
+            }}
+          />
+          {!embed && !isAccount && <DemoBanner signedIn={!!account} />}
+          {!embed && isAccount && <TestEnvBanner />}
+          <div className="relative flex min-h-0 flex-1">
+            <Sidebar />
+            <main
+              ref={mainRef}
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+            >
+              <DesktopHeader />
+              <MobileHeader />
+              <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-4 pt-4 pb-24 desk:px-8 desk:pt-7 desk:pb-14">
+                {children}
+              </div>
+            </main>
+          </div>
+          <MobileNav />
+          <AddProductModal />
+          <ListDialog />
+          <Toaster />
         </div>
-        <MobileNav />
-        <AddProductModal />
-        <ListDialog />
-        <Toaster />
-      </div>
+      </MotionConfig>
     </BootContext>
   );
 }
 
 // Boot state lives in a context instead of the store so it never gets saved
 const Boot = createContext(false);
-function BootContext({ booting, children }: { booting: boolean; children: ReactNode }) {
+function BootContext({
+  booting,
+  children,
+}: {
+  booting: boolean;
+  children: ReactNode;
+}) {
   return <Boot.Provider value={booting}>{children}</Boot.Provider>;
 }
 
@@ -132,18 +178,30 @@ export function useLoading() {
   return booting || loadState === "cargando";
 }
 
-function DemoBanner() {
+function DemoBanner({ signedIn }: { signedIn: boolean }) {
   return (
     <div role="status" className={BANNER_CLASS}>
       <IconEye size={14} aria-hidden />
       <span>Estás viendo una cuenta de demostración</span>
-      <span className="hidden text-text-3 desk:inline">(precios orientativos)</span>
+      <span className="hidden text-text-3 desk:inline">
+        (precios orientativos)
+      </span>
       <span className="text-text-3" aria-hidden>
         ·
       </span>
-      <Link href="/entrar?modo=registro" className="link-anim font-medium text-brand-text">
-        Crear cuenta
-      </Link>
+      {signedIn ? (
+        // A normal link (not <Link>) so the page reloads and loads the account again
+        <a href="/app" className="link-anim font-medium text-brand-text">
+          Volver a mi cuenta
+        </a>
+      ) : (
+        <Link
+          href="/entrar?modo=registro"
+          className="link-anim font-medium text-brand-text"
+        >
+          Crear cuenta
+        </Link>
+      )}
     </div>
   );
 }
@@ -154,8 +212,9 @@ function TestEnvBanner() {
     <div role="note" className={BANNER_CLASS}>
       <IconFlask size={14} className="text-brand-text" aria-hidden />
       <span>
-        <strong className="font-semibold text-text">Entorno de prueba:</strong> catálogo real de septiembre de 2026 con la evolución de
-        precios simulada.
+        <strong className="font-semibold text-text">Entorno de prueba:</strong>{" "}
+        catálogo real de septiembre de 2026 con la evolución de precios
+        simulada.
       </span>
     </div>
   );
@@ -164,7 +223,11 @@ function TestEnvBanner() {
 // Orange highlight behind the active sidebar link. It slides between links thanks to layoutId.
 function SidebarHighlight() {
   return (
-    <motion.span layoutId="nav-active" className="absolute inset-0 rounded-md bg-brand-soft" transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}>
+    <motion.span
+      layoutId="nav-active"
+      className="absolute inset-0 rounded-md bg-brand-soft"
+      transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
+    >
       <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-full bg-brand shadow-[0_0_10px_var(--glow)]" />
     </motion.span>
   );
@@ -194,14 +257,22 @@ function Sidebar() {
 
   return (
     <div className="hidden w-[244px] shrink-0 border-r border-border bg-surface-2/80 backdrop-blur-sm desk:block">
-      <aside aria-label="Navegación principal" className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-3.5">
-        <Link href="/" aria-label="Nadir, inicio" className="flex items-center px-2 py-1 text-text">
+      <aside
+        aria-label="Navegación principal"
+        className="flex h-full flex-col gap-5 overflow-y-auto px-3 py-3.5"
+      >
+        <Link
+          href="/"
+          aria-label="Nadir, inicio"
+          className="flex items-center px-2 py-1 text-text"
+        >
           <Logo />
         </Link>
         <nav className="flex flex-col gap-0.5">
           {NAV.map((n) => {
             const isProducts = n.href === "/app/productos";
-            const active = isActive(path, n.href) && !(isProducts && listSelected);
+            const active =
+              isActive(path, n.href) && !(isProducts && listSelected);
             const Ic = n.icon;
             return (
               <Link
@@ -213,14 +284,28 @@ function Sidebar() {
                 aria-current={active ? "page" : undefined}
                 className={cx(
                   "press group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
-                  active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
+                  active
+                    ? "text-text"
+                    : "text-text-2 hover:bg-surface-3 hover:text-text",
                 )}
               >
                 {active && <SidebarHighlight />}
-                <Ic size={17} aria-hidden className={cx("relative transition-colors duration-200", active ? "text-brand-text" : "group-hover:text-brand-text")} />
+                <Ic
+                  size={17}
+                  aria-hidden
+                  className={cx(
+                    "relative transition-colors duration-200",
+                    active ? "text-brand-text" : "group-hover:text-brand-text",
+                  )}
+                />
                 <span className="relative flex-1">{n.label}</span>
                 {n.href === "/app/tiendas" && storeHasErrors && (
-                  <span title="1 tienda con errores" className="relative size-1.5 rounded-full bg-up" />
+                  <span
+                    title="Hay tiendas con errores"
+                    className="relative size-1.5 rounded-full bg-up"
+                  >
+                    <span className="sr-only">Hay tiendas con errores</span>
+                  </span>
                 )}
                 {counts[n.href] && (
                   <span className="relative grid h-[18px] min-w-5 place-items-center rounded-full border border-border bg-surface px-1.5 text-[11px] font-medium text-text-2">
@@ -233,7 +318,9 @@ function Sidebar() {
         </nav>
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center justify-between pb-1 pl-2">
-            <span className="text-[11px] font-semibold tracking-[.04em] text-text-3 uppercase">Listas</span>
+            <span className="text-[11px] font-semibold tracking-[.04em] text-text-3 uppercase">
+              Listas
+            </span>
             <button
               type="button"
               onClick={() => openListEditor("new")}
@@ -253,11 +340,16 @@ function Sidebar() {
                   onClick={() => setFilter(l.id)}
                   className={cx(
                     "press relative flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
-                    active ? "text-text" : "text-text-2 hover:bg-surface-3 hover:text-text",
+                    active
+                      ? "text-text"
+                      : "text-text-2 hover:bg-surface-3 hover:text-text",
                   )}
                 >
                   {active && <SidebarHighlight />}
-                  <span className="relative mx-1 size-2 shrink-0 rounded-[2px]" style={{ background: l.color }} />
+                  <span
+                    className="relative mx-1 size-2 shrink-0 rounded-[2px]"
+                    style={{ background: l.color }}
+                  />
                   <span className="relative flex-1 truncate">{l.name}</span>
                   {/* The count hides on hover to make room for the edit button */}
                   <span className="relative text-xs text-text-3 group-focus-within/list:opacity-0 group-hover/list:opacity-0">
@@ -275,7 +367,11 @@ function Sidebar() {
               </div>
             );
           })}
-          {lists.length === 0 && <p className="m-0 px-2 text-xs text-text-3">Aún no tienes listas.</p>}
+          {lists.length === 0 && (
+            <p className="m-0 px-2 text-xs text-text-3">
+              Aún no tienes listas.
+            </p>
+          )}
         </div>
         <div className="flex-1" />
         {/* Savings card with fixed sample numbers, demo only */}
@@ -286,15 +382,22 @@ function Sidebar() {
               Este mes has ahorrado
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[22px] font-semibold tracking-[-0.02em]">86 €</span>
+              <span className="text-[22px] font-semibold tracking-[-0.02em]">
+                86 €
+              </span>
               <span className="text-xs text-text-3">en 4 compras</span>
             </div>
           </div>
         )}
-        <Link href="/app/ajustes" className="press flex items-center gap-2.5 rounded-lg p-2 text-left hover:bg-surface-3">
+        <Link
+          href="/app/ajustes"
+          className="press flex items-center gap-2.5 rounded-lg p-2 text-left hover:bg-surface-3"
+        >
           <Avatar name={profile.name} image={accountUser?.image} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[13px] font-medium">{profile.name}</span>
+            <span className="truncate text-[13px] font-medium">
+              {profile.name}
+            </span>
             <span className="text-xs text-text-3">Plan gratuito</span>
           </span>
           <IconSelector size={15} className="text-text-3" aria-hidden />
@@ -305,18 +408,38 @@ function Sidebar() {
 }
 
 // Google profile photo if there is one, otherwise the initials
-export function Avatar({ name, image, size = 30 }: { name: string; image?: string | null; size?: number }) {
+export function Avatar({
+  name,
+  image,
+  size = 30,
+}: {
+  name: string;
+  image?: string | null;
+  size?: number;
+}) {
   if (image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- Google photo or a small uploaded one, already optimized
-      <img src={image} alt="" width={size} height={size} referrerPolicy="no-referrer" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+      <img
+        src={image}
+        alt=""
+        width={size}
+        height={size}
+        referrerPolicy="no-referrer"
+        className="shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
     );
   }
   return (
     <span
       className="grid shrink-0 place-items-center rounded-full bg-brand-soft font-semibold text-brand-text"
       // The letters grow with the avatar
-      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.38)) }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(11, Math.round(size * 0.38)),
+      }}
     >
       {initials(name)}
     </span>
@@ -337,7 +460,10 @@ function usePageTitle() {
   const products = useDemo((s) => s.products);
   if (path.startsWith("/app/productos/")) {
     const id = decodeURIComponent(path.split("/")[3] ?? "");
-    return { title: products.find((p) => p.id === id)?.name ?? "Producto", isFicha: true };
+    return {
+      title: products.find((p) => p.id === id)?.name ?? "Producto",
+      isFicha: true,
+    };
   }
   const titles: Record<string, string> = {
     "/app": "Panel",
@@ -351,7 +477,8 @@ function usePageTitle() {
 
 function ThemeButton() {
   const { theme, toggle } = useTheme();
-  const label = theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
+  const label =
+    theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
   return (
     <button
       type="button"
@@ -369,7 +496,11 @@ function ThemeButton() {
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
           className="grid place-items-center"
         >
-          {theme === "dark" ? <IconSun size={16} aria-hidden /> : <IconMoon size={16} aria-hidden />}
+          {theme === "dark" ? (
+            <IconSun size={16} aria-hidden />
+          ) : (
+            <IconMoon size={16} aria-hidden />
+          )}
         </motion.span>
       </AnimatePresence>
     </button>
@@ -389,7 +520,10 @@ function DesktopHeader() {
       <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
         {isFicha && (
           <>
-            <Link href="/app/productos" className="-ml-1.5 rounded-md px-1.5 py-1 whitespace-nowrap text-text-2 hover:bg-surface-3 hover:text-text">
+            <Link
+              href="/app/productos"
+              className="-ml-1.5 rounded-md px-1.5 py-1 whitespace-nowrap text-text-2 hover:bg-surface-3 hover:text-text"
+            >
               Mis productos
             </Link>
             <IconChevronRight size={14} className="text-text-3" aria-hidden />
@@ -398,7 +532,11 @@ function DesktopHeader() {
         <span className="truncate font-semibold">{title}</span>
       </div>
       <label className="relative flex w-[260px] min-w-[140px] shrink items-center">
-        <IconSearch size={15} className="absolute left-2.5 text-text-3" aria-hidden />
+        <IconSearch
+          size={15}
+          className="absolute left-2.5 text-text-3"
+          aria-hidden
+        />
         <input
           value={search}
           onChange={(e) => {
@@ -426,15 +564,25 @@ function MobileHeader() {
   return (
     <header className="sticky top-0 z-10 flex h-[52px] items-center gap-2.5 border-b border-border bg-bg/85 pr-3 pl-4 backdrop-blur-md desk:hidden">
       {isFicha ? (
-        <Link href="/app/productos" aria-label="Volver a Mis productos" className="press -ml-2 grid size-9 place-items-center rounded-lg text-text">
+        <Link
+          href="/app/productos"
+          aria-label="Volver a Mis productos"
+          className="press -ml-2 grid size-9 place-items-center rounded-lg text-text"
+        >
           <IconArrowLeft size={20} aria-hidden />
         </Link>
       ) : (
         <LogoMark />
       )}
-      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{isFicha ? "Producto" : title}</span>
+      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+        {isFicha ? "Producto" : title}
+      </span>
       <ThemeButton />
-      <Button onClick={openAdd} aria-label="Añadir producto" className="h-9 rounded-lg">
+      <Button
+        onClick={openAdd}
+        aria-label="Añadir producto"
+        className="h-9 rounded-lg"
+      >
         <IconPlus size={16} aria-hidden />
         Añadir
       </Button>
@@ -448,7 +596,12 @@ function MobileNav() {
   // Mobile uses the short labels and adds Settings at the end
   const items = [
     ...NAV.map((n) => ({ ...n, label: n.short })),
-    { href: "/app/ajustes", label: "Ajustes", short: "Ajustes", icon: IconSettings },
+    {
+      href: "/app/ajustes",
+      label: "Ajustes",
+      short: "Ajustes",
+      icon: IconSettings,
+    },
   ];
   return (
     <nav
@@ -501,14 +654,22 @@ function Toaster() {
   }, [toast, hide]);
 
   return (
-    <div aria-live="polite" role="status" className="pointer-events-none fixed right-4 bottom-20 z-[60] desk:right-6 desk:bottom-6">
+    <div
+      aria-live="polite"
+      role="status"
+      className="pointer-events-none fixed right-4 bottom-20 z-[60] desk:right-6 desk:bottom-6"
+    >
       <AnimatePresence>
         {toast && (
           <motion.div
             key={toast.id}
             initial={{ opacity: 0, transform: "translateY(12px) scale(0.96)" }}
             animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
-            exit={{ opacity: 0, transform: "translateY(6px) scale(0.98)", transition: { duration: 0.15 } }}
+            exit={{
+              opacity: 0,
+              transform: "translateY(6px) scale(0.98)",
+              transition: { duration: 0.15 },
+            }}
             transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
             className="flex max-w-[min(420px,calc(100vw-32px))] items-center gap-2.5 rounded-lg bg-toast-bg py-2.5 pr-3.5 pl-2.5 text-[13px] font-medium text-toast-text shadow-lg"
           >
@@ -524,8 +685,17 @@ function Toaster() {
 // Red cross for errors, green tick otherwise
 function ToastIcon({ isError }: { isError: boolean }) {
   return (
-    <span className={cx("grid size-5 shrink-0 place-items-center rounded-full text-white", isError ? "bg-[#dc2626]" : "bg-[#16a34a]")}>
-      {isError ? <IconX size={13} aria-hidden /> : <IconCheck size={13} aria-hidden />}
+    <span
+      className={cx(
+        "grid size-5 shrink-0 place-items-center rounded-full text-white",
+        isError ? "bg-[#dc2626]" : "bg-[#16a34a]",
+      )}
+    >
+      {isError ? (
+        <IconX size={13} aria-hidden />
+      ) : (
+        <IconCheck size={13} aria-hidden />
+      )}
     </span>
   );
 }

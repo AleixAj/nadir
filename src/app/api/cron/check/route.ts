@@ -10,9 +10,25 @@ import { checkProduct } from "@/server/checks";
 const BATCH = 40; // max products per run
 const PARALLEL = 5; // checks running at the same time
 
+// Compares two strings in constant time (hashing first so both have the same length),
+// so the response time doesn't give hints about the secret
+async function sameSecret(a: string, b: string) {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const x = new Uint8Array(ha);
+  const y = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!secret || !(await sameSecret(auth, `Bearer ${secret}`))) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 

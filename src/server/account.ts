@@ -36,7 +36,8 @@ export async function getAccountData(user: { id: string; name: string; email: st
   const ids = rows.map((r) => r.id);
 
   const since = new Date(now.getTime() - 366 * DAY);
-  const day = sql`date_trunc('day', ${pricePoint.checkedAt} at time zone 'Europe/Madrid')`;
+  // checked_at is saved in UTC without a time zone, so first mark it as UTC and then move it to Madrid time
+  const day = sql`date_trunc('day', (${pricePoint.checkedAt} at time zone 'UTC') at time zone 'Europe/Madrid')`;
   const catalogIds = [...new Set(rows.map((r) => r.catalogId).filter((x): x is string => !!x))];
 
   // These don't depend on each other, so run them in parallel

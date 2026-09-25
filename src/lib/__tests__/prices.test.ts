@@ -104,3 +104,15 @@ describe("add product", () => {
     expect(searchCatalog("sony").map((x) => x.slug)).toContain("sony-wf-1000xm5");
   });
 });
+
+describe("zero or missing prices", () => {
+  it("never shows NaN in percentages", () => {
+    expect(pctS(NaN)).not.toContain("NaN");
+    expect(pctS(Infinity)).not.toContain("Infinity");
+  });
+  it("draws a chart even when the price is 0", () => {
+    const c = buildChart({ series: [0], range: "1M", width: 600, compact: true, allTimeMin: 0, target: null });
+    expect(c.line).not.toContain("NaN");
+    expect(Number.isFinite(c.stats.change)).toBe(true);
+  });
+});

@@ -15,7 +15,8 @@
   --border-strong: #d6d3d1;
   --text: #1c1917;
   --text-2: #57534e;
-  --text-3: #736c66;
+  /* Dark enough to pass AA contrast (4.5:1) on --surface-3 */
+  --text-3: #6b645e;
   --brand: #ea580c;
   --brand-solid: #cf4709;
   --brand-solid-hover: #b23c07;
@@ -58,7 +59,8 @@
   --brand: #f97316;
   /* Slightly darker orange so white text passes AA contrast */
   --brand-solid: #c2410c;
-  --brand-solid-hover: #d9500b;
+  /* Darker on hover so white text still passes AA contrast */
+  --brand-solid-hover: #ad3a0a;
   --on-brand: #ffffff;
   --brand-soft: rgba(249, 115, 22, 0.12);
   --brand-soft-border: rgba(249, 115, 22, 0.38);
@@ -442,5 +444,15 @@
   }
   .btn-glow::after {
     display: none;
+  }
+
+  /* Catches inline animations too, like the ProgressBar "grow" */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

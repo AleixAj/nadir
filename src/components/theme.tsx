@@ -13,7 +13,9 @@ export const themeScript = `(function () {
   var root = document.documentElement;
   try {
     var fromUrl = new URLSearchParams(location.search).get('theme');
-    root.setAttribute('data-theme', fromUrl || localStorage.getItem('${KEY}') || 'dark');
+    var theme = fromUrl || localStorage.getItem('${KEY}');
+    // Only accept the two known themes, anything else falls back to dark
+    root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
   } catch (e) {
     root.setAttribute('data-theme', 'dark');
   }

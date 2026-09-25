@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { motion, MotionConfig, useReducedMotion, type Variants } from "motion/react";
 import { IconArrowRight, IconBell, IconBuildingStore, IconChartLine } from "@tabler/icons-react";
 import { useTheme } from "@/components/theme";
 import { btn, ButtonLink, Logo } from "@/components/ui";
@@ -45,141 +45,144 @@ export default function Landing() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-clip bg-bg text-text">
-      {/* Background: faint fading grid plus an orange glow at the top */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[900px]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
-          WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[-220px] left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full blur-3xl"
-        style={{ background: "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 22%, transparent), transparent)" }}
-      />
-      <header className="sticky top-0 z-10 border-b border-border/70 bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-[60px] max-w-[1200px] items-center gap-6 px-4 desk:px-8">
-          <Link href="/" aria-label="Nadir, inicio" className="text-text">
-            <Logo size={24} text={17} />
-          </Link>
-          <nav className="hidden gap-1 desk:flex">
-            <a href="#ventajas" className={NAV_LINK}>
-              Cómo funciona
-            </a>
-            <Link href="/email/alerta" className={NAV_LINK}>
-              Avisos
+    // reducedMotion="user" turns off movement animations if the OS asks for less motion
+    <MotionConfig reducedMotion="user">
+      <div className="relative flex min-h-screen flex-col overflow-x-clip bg-bg text-text">
+        {/* Background: faint fading grid plus an orange glow at the top */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[900px]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--text) 5%, transparent) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
+            WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-[-220px] left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 22%, transparent), transparent)" }}
+        />
+        <header className="sticky top-0 z-10 border-b border-border/70 bg-bg/70 backdrop-blur-md">
+          <div className="mx-auto flex h-[60px] max-w-[1200px] items-center gap-6 px-4 desk:px-8">
+            <Link href="/" aria-label="Nadir, inicio" className="text-text">
+              <Logo size={24} text={17} />
             </Link>
-          </nav>
-          <div className="flex-1" />
-          <HeaderActions />
-        </div>
-      </header>
-
-      <main className="relative flex-1">
-        <motion.section
-          variants={hero}
-          initial="hidden"
-          animate="show"
-          className="relative mx-auto flex max-w-[1200px] flex-col items-center gap-5 px-4 pt-12 pb-9 text-center desk:px-8 desk:pt-24 desk:pb-14"
-        >
-          <HeroCurve />
-          <motion.span
-            variants={item}
-            className="relative inline-flex h-7 items-center gap-2 rounded-full border border-border bg-surface px-3 text-xs font-medium whitespace-nowrap text-text-2"
-          >
-            <span className="size-[7px] rounded-full bg-brand shadow-[0_0_0_3px_var(--brand-soft)]" />
-            Nadir: el punto más bajo de una curva
-          </motion.span>
-          <motion.h1
-            variants={item}
-            className="relative m-0 max-w-[820px] text-[42px] leading-[1.04] font-semibold tracking-[-0.04em] text-balance desk:text-[72px]"
-          >
-            Compra en el <span className="text-grad">punto más bajo</span>.
-          </motion.h1>
-          <motion.p variants={item} className="relative m-0 max-w-[600px] text-base leading-[1.55] text-pretty text-text-2 desk:text-lg">
-            Nadir vigila el precio de los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del
-            precio que tú eliges.
-          </motion.p>
-          <motion.div variants={item} className="relative mt-1.5 flex w-full flex-col justify-center gap-2.5 desk:w-auto desk:flex-row">
-            <ButtonLink href="/app?demo=1" size="lg" className="group">
-              Entrar como demo
-              <IconArrowRight size={17} aria-hidden className="nudge" />
-            </ButtonLink>
-            <ButtonLink href="/entrar?modo=registro" variant="secondary" size="lg">
-              Crear cuenta
-            </ButtonLink>
-          </motion.div>
-          <motion.p variants={item} className="relative m-0 text-[13px] text-text-3">
-            Sin registro. La cuenta de demostración ya sigue 12 productos.
-          </motion.p>
-        </motion.section>
-
-        <section aria-label="Vista previa de la aplicación" className="mx-auto max-w-[1200px] px-4 desk:px-8">
-          <motion.div
-            initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translateY(32px) scale(0.98)" }}
-            animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
-            transition={{ duration: 0.9, ease: EASE, delay: 0.35 }}
-            className="relative rounded-2xl border border-brand-soft-border/70 bg-surface-2 p-1.5 shadow-[0_30px_80px_-30px_var(--glow)] desk:p-2.5"
-          >
-            <AppPreview />
-          </motion.div>
-        </section>
-
-        <section id="ventajas" className="mx-auto max-w-[1200px] scroll-mt-20 px-4 py-12 desk:px-8 desk:py-[88px]">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-7 desk:gap-10">
-            {FEATURES.map((f, i) => (
-              <motion.div
-                key={f.title}
-                initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translateY(16px)" }}
-                whileInView={{ opacity: 1, transform: "translateY(0px)" }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.6, ease: EASE, delay: i * 0.08 }}
-                className="group lift surface-grad flex flex-col gap-2.5 rounded-xl border border-border bg-surface/60 p-5"
-              >
-                <span className="grid size-9 place-items-center rounded-[9px] bg-brand-soft text-brand-text ring-1 ring-brand-soft-border transition-transform duration-300 ease-out-strong group-hover:scale-110 group-hover:-rotate-6">
-                  <f.icon size={19} aria-hidden />
-                </span>
-                <h2 className="mt-1 mb-0 text-[17px] font-semibold tracking-[-0.015em]">{f.title}</h2>
-                <p className="m-0 text-sm leading-[1.6] text-pretty text-text-2">{f.text}</p>
-              </motion.div>
-            ))}
+            <nav className="hidden gap-1 desk:flex">
+              <a href="#ventajas" className={NAV_LINK}>
+                Cómo funciona
+              </a>
+              <Link href="/email/alerta" className={NAV_LINK}>
+                Avisos
+              </Link>
+            </nav>
+            <div className="flex-1" />
+            <HeaderActions />
           </div>
-        </section>
-      </main>
+        </header>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-start justify-between gap-6 px-4 py-8 desk:px-8">
-          <div className="flex max-w-[360px] flex-col gap-2">
-            <Logo size={20} text={15} />
-            <p className="m-0 text-xs text-text-3">Proyecto de portfolio sin relación con las tiendas mencionadas. Los precios de la demo son orientativos y el histórico está simulado.</p>
+        <main className="relative flex-1">
+          <motion.section
+            variants={hero}
+            initial="hidden"
+            animate="show"
+            className="relative mx-auto flex max-w-[1200px] flex-col items-center gap-5 px-4 pt-12 pb-9 text-center desk:px-8 desk:pt-24 desk:pb-14"
+          >
+            <HeroCurve />
+            <motion.span
+              variants={item}
+              className="relative inline-flex h-7 items-center gap-2 rounded-full border border-border bg-surface px-3 text-xs font-medium whitespace-nowrap text-text-2"
+            >
+              <span className="size-[7px] rounded-full bg-brand shadow-[0_0_0_3px_var(--brand-soft)]" />
+              Nadir: el punto más bajo de una curva
+            </motion.span>
+            <motion.h1
+              variants={item}
+              className="relative m-0 max-w-[820px] text-[42px] leading-[1.04] font-semibold tracking-[-0.04em] text-balance desk:text-[72px]"
+            >
+              Compra en el <span className="text-grad">punto más bajo</span>.
+            </motion.h1>
+            <motion.p variants={item} className="relative m-0 max-w-[600px] text-base leading-[1.55] text-pretty text-text-2 desk:text-lg">
+              Nadir vigila el precio de los productos que te interesan en varias tiendas, guarda su histórico y te avisa cuando bajan del
+              precio que tú eliges.
+            </motion.p>
+            <motion.div variants={item} className="relative mt-1.5 flex w-full flex-col justify-center gap-2.5 desk:w-auto desk:flex-row">
+              <ButtonLink href="/app?demo=1" size="lg" className="group">
+                Entrar como demo
+                <IconArrowRight size={17} aria-hidden className="nudge" />
+              </ButtonLink>
+              <ButtonLink href="/entrar?modo=registro" variant="secondary" size="lg">
+                Crear cuenta
+              </ButtonLink>
+            </motion.div>
+            <motion.p variants={item} className="relative m-0 text-[13px] text-text-3">
+              Sin registro. La cuenta de demostración ya sigue 12 productos.
+            </motion.p>
+          </motion.section>
+
+          <section aria-label="Vista previa de la aplicación" className="mx-auto max-w-[1200px] px-4 desk:px-8">
+            <motion.div
+              initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translateY(32px) scale(0.98)" }}
+              animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
+              transition={{ duration: 0.9, ease: EASE, delay: 0.35 }}
+              className="relative rounded-2xl border border-brand-soft-border/70 bg-surface-2 p-1.5 shadow-[0_30px_80px_-30px_var(--glow)] desk:p-2.5"
+            >
+              <AppPreview />
+            </motion.div>
+          </section>
+
+          <section id="ventajas" className="mx-auto max-w-[1200px] scroll-mt-20 px-4 py-12 desk:px-8 desk:py-[88px]">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-7 desk:gap-10">
+              {FEATURES.map((f, i) => (
+                <motion.div
+                  key={f.title}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, transform: "translateY(16px)" }}
+                  whileInView={{ opacity: 1, transform: "translateY(0px)" }}
+                  viewport={{ once: true, margin: "-80px" }}
+                  transition={{ duration: 0.6, ease: EASE, delay: i * 0.08 }}
+                  className="group lift surface-grad flex flex-col gap-2.5 rounded-xl border border-border bg-surface/60 p-5"
+                >
+                  <span className="grid size-9 place-items-center rounded-[9px] bg-brand-soft text-brand-text ring-1 ring-brand-soft-border transition-transform duration-300 ease-out-strong group-hover:scale-110 group-hover:-rotate-6">
+                    <f.icon size={19} aria-hidden />
+                  </span>
+                  <h2 className="mt-1 mb-0 text-[17px] font-semibold tracking-[-0.015em]">{f.title}</h2>
+                  <p className="m-0 text-sm leading-[1.6] text-pretty text-text-2">{f.text}</p>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        </main>
+
+        <footer className="border-t border-border">
+          <div className="mx-auto flex max-w-[1200px] flex-wrap items-start justify-between gap-6 px-4 py-8 desk:px-8">
+            <div className="flex max-w-[360px] flex-col gap-2">
+              <Logo size={20} text={15} />
+              <p className="m-0 text-xs text-text-3">Proyecto de portfolio sin relación con las tiendas mencionadas. Los precios de la demo son orientativos y el histórico está simulado.</p>
+            </div>
+            <nav aria-label="Pie de página" className="flex flex-wrap gap-5 text-[13px]">
+              <Link href="/app?demo=1" className="link-anim text-text-2 hover:text-text">
+                Demo
+              </Link>
+              <Link href="/entrar" className="link-anim text-text-2 hover:text-text">
+                Iniciar sesión
+              </Link>
+              <Link href="/email/alerta" className="link-anim text-text-2 hover:text-text">
+                Email de alerta
+              </Link>
+              <Link href="/privacidad" className="link-anim text-text-2 hover:text-text">
+                Privacidad
+              </Link>
+              <Link href="/condiciones" className="link-anim text-text-2 hover:text-text">
+                Condiciones
+              </Link>
+            </nav>
+            <span className="text-xs text-text-3">© 2026 Nadir</span>
           </div>
-          <nav aria-label="Pie de página" className="flex flex-wrap gap-5 text-[13px]">
-            <Link href="/app?demo=1" className="link-anim text-text-2 hover:text-text">
-              Demo
-            </Link>
-            <Link href="/entrar" className="link-anim text-text-2 hover:text-text">
-              Iniciar sesión
-            </Link>
-            <Link href="/email/alerta" className="link-anim text-text-2 hover:text-text">
-              Email de alerta
-            </Link>
-            <Link href="/privacidad" className="link-anim text-text-2 hover:text-text">
-              Privacidad
-            </Link>
-            <Link href="/condiciones" className="link-anim text-text-2 hover:text-text">
-              Condiciones
-            </Link>
-          </nav>
-          <span className="text-xs text-text-3">© 2026 Nadir</span>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </MotionConfig>
   );
 }
 
@@ -279,6 +282,9 @@ function AppPreview() {
           src={src}
           title="Ficha de producto en Nadir"
           tabIndex={-1}
+          // Only a picture of the app: keyboard and screen readers skip it
+          inert
+          aria-hidden="true"
           loading="lazy"
           className="pointer-events-none absolute top-0 left-0 border-0"
           style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})`, transformOrigin: "0 0" }}

@@ -8,10 +8,28 @@ import { nextSimulatedPrice } from "./simulation";
 
 type ProductRecord = typeof product.$inferSelect;
 
+type CheckResult = { ok: boolean; priceCents?: number; error?: string };
+
 // Checks a product's price: reads its page, saves the price and
 // creates an alert if it dropped below the target.
-export async function checkProduct(p: ProductRecord): Promise<{ ok: boolean; priceCents?: number; error?: string }> {
-  if (p.catalogId) return checkSimulated(p);
+// It never throws: an unexpected error is saved on the product, so one bad page
+// can't stop the automatic check of everyone else's products.
+export async function checkProduct(p: ProductRecord): Promise<CheckResult> {
+  try {
+    return p.catalogId ? await checkSimulated(p) : await checkStore(p);
+  } catch (err) {
+    console.error("Price check failed", p.id, err);
+    const error = "No hemos podido revisar el precio. Lo intentaremos más tarde.";
+    await db
+      .update(product)
+      .set({ lastCheckedAt: new Date(), lastError: error })
+      .where(eq(product.id, p.id))
+      .catch(() => {});
+    return { ok: false, error };
+  }
+}
+
+async function checkStore(p: ProductRecord): Promise<CheckResult> {
   const res = await fetchProduct(p.url);
   const now = new Date();
 

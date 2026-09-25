@@ -4,7 +4,8 @@ import { AppShell } from "@/components/app/shell";
 import { getSession } from "@/lib/auth";
 import { getAccountData } from "@/server/account";
 
-export const metadata: Metadata = { title: "Panel" };
+// Pages inside /app get "Mis productos · Nadir", "Alertas · Nadir"...
+export const metadata: Metadata = { title: { default: "Panel", template: "%s · Nadir" } };
 
 // Load account data on every request (never at build time)
 export const dynamic = "force-dynamic";

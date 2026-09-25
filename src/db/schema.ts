@@ -1,7 +1,7 @@
 // Database schema (Postgres on Neon, using Drizzle ORM).
 // The first four tables are the ones Better Auth needs for login.
 // Prices are stored in cents (integers) to avoid floating point errors.
-import { boolean, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Login tables (Better Auth)
 
@@ -61,6 +61,15 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Login attempts per IP and route, so the limit works across all Cloudflare Workers
+// (each Worker has its own memory, so an in-memory limit would barely apply)
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
 // App tables
@@ -167,7 +176,7 @@ export const userAvatar = pgTable("user_avatar", {
 });
 
 // Sample catalog
-// Real products loaded once from Google Shopping (scripts/seed-catalog.mjs).
+// Real products loaded once from Google Shopping (scripts/seed-catalog.ts).
 // They stand in for what the stores' affiliate feeds would give us in production.
 
 // A catalog product (the same model can be sold in several stores)

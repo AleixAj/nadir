@@ -33,7 +33,8 @@ export interface ChartInput {
 
 export function buildChart({ series, range, width, compact, allTimeMin, target, end }: ChartInput) {
   let data = series.slice(-RANGES[range].days);
-  // Only one price (just added product): draw a flat line
+  // No prices yet: a flat line at 0. One price (just added product): a flat line at that price
+  if (data.length === 0) data = [0, 0];
   if (data.length === 1) data = [data[0], data[0]];
   const ago = (n: number) => agoFrom(n, end);
   const len = data.length;
@@ -51,7 +52,8 @@ export function buildChart({ series, range, width, compact, allTimeMin, target, 
     mn = Math.min(mn, target);
     mx = Math.max(mx, target);
   }
-  const span = Math.max(mx - mn, mx * 0.04);
+  // At least 1 €, so a price of 0 can't make the scale (and every position) NaN
+  const span = Math.max(mx - mn, mx * 0.04, 1);
   const step = niceStep(span / 4);
   const lo = Math.floor((mn - span * 0.18) / step) * step;
   const hi = Math.ceil((mx + span * 0.1) / step) * step;
@@ -116,7 +118,7 @@ export function buildChart({ series, range, width, compact, allTimeMin, target, 
       max: { value: maxV, date: fd(ago(len - 1 - maxI)) },
       avg,
       min: { value: minV, date: fd(ago(len - 1 - minI)) },
-      change: ((data[len - 1] - data[0]) / data[0]) * 100,
+      change: data[0] ? ((data[len - 1] - data[0]) / data[0]) * 100 : 0,
     },
     /** Index of the data point closest to an x position in pixels */
     indexAt(px: number) {

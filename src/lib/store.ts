@@ -93,7 +93,7 @@ interface DemoState {
   enterDemo: () => Promise<void>;
   toggleAlert: (id: string) => void;
   saveAlert: (id: string, target: number, on: boolean) => Promise<void>;
-  addProduct: (p: Product) => void;
+  addProduct: (p: Product) => boolean;
   addFromUrl: (input: { url: string; target: number | null; listId: string | null }) => Promise<boolean>;
   addFromCatalog: (input: { catalogId: string; target: number | null; listId: string | null }) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
@@ -124,6 +124,9 @@ const PERSISTED = {
   freq: "1h" as Freq,
   profile: { name: "Aleix", email: "aleix@ejemplo.com" },
 };
+
+// UI state that shouldn't carry over when switching between demo and account
+const CLEAN_UI = { filter: "Todas", search: "", addOpen: false, listEditor: null };
 
 /** Maps account data from the server to the store shape. */
 const fromAccount = (d: AccountData) => ({
@@ -190,7 +193,7 @@ export const useDemo = create<DemoState>()(
         showToast: (msg, tone = "ok") => set({ toast: { id: Date.now(), msg, tone } }),
         hideToast: () => set({ toast: null }),
 
-        enterAccount: (d) => set({ mode: "account", loadState: "normal", ...fromAccount(d) }),
+        enterAccount: (d) => set({ mode: "account", loadState: "normal", ...CLEAN_UI, ...fromAccount(d) }),
         enterDemo: async () => {
           // While mode is still "account" nothing is written to localStorage,
           // so the saved demo changes are not overwritten here
@@ -198,7 +201,7 @@ export const useDemo = create<DemoState>()(
             set({ ...PERSISTED, alerts: initialAlerts(), account: null, history: [], lastCheckMinutes: null });
           }
           await useDemo.persist.rehydrate();
-          set({ mode: "demo" });
+          set({ mode: "demo", ...CLEAN_UI });
         },
 
         toggleAlert: (id) => {
@@ -227,7 +230,7 @@ export const useDemo = create<DemoState>()(
         addProduct: (p) => {
           if (get().products.some((x) => x.id === p.id)) {
             get().showToast("Ya sigues este producto", "error");
-            return;
+            return false;
           }
           set((s) => ({
             products: [p, ...s.products],
@@ -235,6 +238,7 @@ export const useDemo = create<DemoState>()(
             loadState: s.loadState === "vacio" ? "normal" : s.loadState,
           }));
           get().showToast(addedMessage(get().lists, p.list));
+          return true;
         },
         addFromUrl: (input) => apply(api.addProduct(input), addedMessage(get().lists, input.listId)),
         addFromCatalog: (input) => apply(api.addFromCatalog(input), addedMessage(get().lists, input.listId)),
@@ -249,21 +253,18 @@ export const useDemo = create<DemoState>()(
             get().showToast("Precio revisado");
             return;
           }
-          try {
-            const r = await api.checkNow(id);
-            if (!r.ok) return get().showToast(r.error, "error");
-            set(fromAccount(r.data));
-            if (r.checkError) get().showToast(r.checkError, "error");
-            else get().showToast("Precio revisado");
-          } catch {
-            get().showToast("No hemos podido conectar con el servidor.", "error");
-          }
+          const request = api.checkNow(id);
+          if (!(await apply(request))) return;
+          // The request already finished, this just reads its result
+          const r = await request;
+          if (r.ok && r.checkError) get().showToast(r.checkError, "error");
+          else get().showToast("Precio revisado");
         },
         setChannel: (k, on) => {
           set((s) => ({ channels: { ...s.channels, [k]: on } }));
           if (!isAccount()) return;
           apply(api.updateSettings({ [k]: on })).then((ok) => {
-            if (!ok) set((s) => ({ channels: { ...s.channels, [k]: !on } }));
+            if (!ok && get().channels[k] === on) set((s) => ({ channels: { ...s.channels, [k]: !on } }));
           });
         },
         setFreq: (freq) => {
@@ -271,7 +272,7 @@ export const useDemo = create<DemoState>()(
           set({ freq });
           if (!isAccount() || freq === "15m") return;
           apply(api.updateSettings({ freq })).then((ok) => {
-            if (!ok) set({ freq: prev });
+            if (!ok && get().freq === freq) set({ freq: prev });
           });
         },
         setProfile: (profile) => {

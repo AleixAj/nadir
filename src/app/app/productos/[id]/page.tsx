@@ -123,6 +123,12 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
     setSeenOn(storedOn);
     setAlertOn(storedOn ?? false);
   }
+  // Same for the saved target price
+  const [seenTarget, setSeenTarget] = useState(p.target);
+  if (seenTarget !== p.target) {
+    setSeenTarget(p.target);
+    setTarget(toInputPrice(p.target ?? Math.round(p.cur * 0.9)));
+  }
 
   const tn = parsePrice(target);
   const valid = !isNaN(tn) && tn > 0;
@@ -254,42 +260,56 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
               <span className="text-xs text-text-3">Ordenado por precio final con envío</span>
             </div>
             <div className="hidden overflow-x-auto desk:block">
-              <div className="min-w-[700px]">
-                <div className={cx("grid h-[34px] items-center gap-3 bg-surface-2 px-4 text-xs font-medium text-text-3", OFFER_COLS)}>
-                  <span>Tienda</span>
-                  <span className="text-right">Precio</span>
-                  <span>Envío o recogida</span>
-                  <span>Plazo</span>
-                  <span className="text-right">Total</span>
-                  <span />
+              {/* Table roles so screen readers link each cell with its column */}
+              <div role="table" aria-label="Comparativa de tiendas" className="min-w-[700px]">
+                <div role="row" className={cx("grid h-[34px] items-center gap-3 bg-surface-2 px-4 text-xs font-medium text-text-3", OFFER_COLS)}>
+                  <span role="columnheader">Tienda</span>
+                  <span role="columnheader" className="text-right">
+                    Precio
+                  </span>
+                  <span role="columnheader">Envío o recogida</span>
+                  <span role="columnheader">Plazo</span>
+                  <span role="columnheader" className="text-right">
+                    Total
+                  </span>
+                  <span role="columnheader">
+                    <span className="sr-only">Enlace</span>
+                  </span>
                 </div>
                 {offers.map((s) =>
                   s.error ? (
-                    <div key={s.name} className="flex min-h-12 flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 text-[13px]">
-                      <span className="min-w-[120px] font-medium text-text-2">{s.name}</span>
-                      <span className="flex min-w-[220px] flex-1 items-center gap-1.5 text-up">
+                    <div key={s.name} role="row" className="flex min-h-12 flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 text-[13px]">
+                      <span role="cell" className="min-w-[120px] font-medium text-text-2">
+                        {s.name}
+                      </span>
+                      <span role="cell" className="flex min-w-[220px] flex-1 items-center gap-1.5 text-up">
                         <IconAlertCircle size={15} aria-hidden />
                         {isAccount ? p.lastError : "No disponible. No hemos podido revisar esta tienda desde las 09:12."}
                       </span>
-                      <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => retryStore(s.name)}>
-                        Reintentar
-                      </Button>
+                      <span role="cell">
+                        <Button variant="secondary" className="h-7 px-2.5 text-xs shadow-none" onClick={() => retryStore(s.name)}>
+                          Reintentar
+                        </Button>
+                      </span>
                     </div>
                   ) : (
                     <div
                       key={s.name}
+                      role="row"
                       className={cx(
                         "grid min-h-12 items-center gap-3 border-t border-border px-4 text-[13px]",
                         OFFER_COLS,
                         s.best && "bg-brand-soft",
                       )}
                     >
-                      <span className="flex items-center gap-2 font-medium">
+                      <span role="cell" className="flex items-center gap-2 font-medium">
                         {s.name}
                         {s.best && <BestTag />}
                       </span>
-                      <span className="text-right">{eur(s.price!)}</span>
-                      <span className="flex items-center gap-1.5 text-text-2">
+                      <span role="cell" className="text-right">
+                        {eur(s.price!)}
+                      </span>
+                      <span role="cell" className="flex items-center gap-1.5 text-text-2">
                         {s.pickup ? (
                           <IconBuildingStore size={15} className="text-text-3" aria-hidden />
                         ) : (
@@ -297,16 +317,22 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                         )}
                         {s.shipL}
                       </span>
-                      <span className="text-text-2">{s.eta}</span>
-                      <span className="text-right font-semibold">{eur(s.total!)}</span>
-                      <StoreLink
-                        p={isAccount ? p : undefined}
-                        href={s.url}
-                        aria-label={"Ir a " + s.name}
-                        className="grid size-7 place-items-center rounded-md text-text-3 transition-colors hover:bg-surface-3 hover:text-text"
-                      >
-                        <IconExternalLink size={15} aria-hidden />
-                      </StoreLink>
+                      <span role="cell" className="text-text-2">
+                        {s.eta}
+                      </span>
+                      <span role="cell" className="text-right font-semibold">
+                        {eur(s.total!)}
+                      </span>
+                      <span role="cell">
+                        <StoreLink
+                          p={isAccount ? p : undefined}
+                          href={s.url}
+                          aria-label={"Ir a " + s.name}
+                          className="grid size-7 place-items-center rounded-md text-text-3 transition-colors hover:bg-surface-3 hover:text-text"
+                        >
+                          <IconExternalLink size={15} aria-hidden />
+                        </StoreLink>
+                      </span>
                     </div>
                   ),
                 )}
@@ -350,7 +376,7 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
             </div>
             <fieldset
               disabled={!alertOn}
-              className="m-0 flex min-w-0 flex-col gap-4 border-0 p-4 transition-opacity duration-200"
+              className="m-0 flex min-w-0 flex-col gap-4 border-0 px-4 pt-4 pb-4 transition-opacity duration-200"
               style={{ opacity: alertOn ? 1 : 0.5 }}
             >
               <div className="flex flex-col gap-1.5">
@@ -361,13 +387,15 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                   <input
                     id="target"
                     inputMode="decimal"
+                    aria-describedby="target-hint"
+                    aria-invalid={!valid}
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
                     className="min-w-0 flex-1 border-none bg-transparent text-xl font-semibold tracking-[-0.02em] outline-none"
                   />
                   <span className="text-base font-medium text-text-3">€</span>
                 </div>
-                <span className="text-[13px]" style={{ color: targetHintColor }}>
+                <span id="target-hint" className="text-[13px]" style={{ color: targetHintColor }}>
                   {targetHint}
                 </span>
               </div>
@@ -430,10 +458,13 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
                   );
                 })}
               </div>
+            </fieldset>
+            {/* Outside the fieldset: when the alert is off it still has to be saveable */}
+            <div className="flex flex-col px-4 pb-4">
               <Button size="md" onClick={() => valid && saveAlert(p.id, tn, alertOn)} disabled={!valid}>
                 Guardar alerta
               </Button>
-            </fieldset>
+            </div>
           </Card>
 
           {/* Stats for the selected range */}
@@ -502,11 +533,8 @@ function StoreLink({
       </a>
     );
   }
-  return (
-    <a href="#" onClick={(e) => e.preventDefault()} {...rest}>
-      {children}
-    </a>
-  );
+  // Demo: no real store page, so it's plain text instead of a link that goes nowhere
+  return <span {...rest}>{children}</span>;
 }
 
 /** "..." menu: check the price now or stop following the product. */
@@ -616,7 +644,7 @@ function ListPicker({ p }: { p: Product }) {
   const moveProduct = useDemo((s) => s.moveProduct);
   const current = lists.find((l) => l.id === p.list);
   return (
-    <label className="relative inline-flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full bg-surface-3 pr-6 pl-2 text-xs font-medium text-text transition-colors hover:bg-border">
+    <label className="relative inline-flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full bg-surface-3 pr-6 pl-2 text-xs font-medium text-text transition-colors hover:bg-border has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-solid has-focus-visible:outline-[var(--ring)]">
       <span className="size-2 rounded-[2px]" style={{ background: current?.color ?? "var(--text-3)" }} />
       {current?.name ?? "Sin lista"}
       <IconSelector size={12} className="absolute right-1.5 text-text-3" aria-hidden />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dailySeries, productFromRows, crossedTarget } from "../history";
-import { checkPublicUrl, parsePriceToCents, parseProductPage, storeName } from "../product-page";
+import { checkPublicUrl, decodeEntities, parsePriceToCents, parseProductPage, storeName } from "../product-page";
 
 describe("parsePriceToCents", () => {
   it.each([
@@ -163,5 +163,16 @@ describe("price history from saved rows", () => {
     expect(crossedTarget(null, 350, 360, true)).toBe(true);
     expect(crossedTarget(400, 350, 360, false)).toBe(false);
     expect(crossedTarget(400, 350, null, true)).toBe(false);
+  });
+});
+
+describe("bad input from store pages", () => {
+  it("ignores prices that can't be real", () => {
+    expect(parsePriceToCents("99.999.999,00 €")).toBeNull();
+    expect(parsePriceToCents(1_000_000)).toBe(100_000_000);
+  });
+  it("doesn't crash on invalid character codes", () => {
+    expect(decodeEntities("A&#99999999;B")).toBe("AB");
+    expect(decodeEntities("caf&#233;")).toBe("café");
   });
 });

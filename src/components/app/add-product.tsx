@@ -26,7 +26,7 @@ import {
   type ProductIcon,
 } from "@/lib/demo-data";
 import { eur, parsePrice } from "@/lib/format";
-import { useIsMobile } from "@/lib/hooks";
+import { useDialogFocus, useIsMobile } from "@/lib/hooks";
 import { useDemo, useIsAccount } from "@/lib/store";
 import { previewProduct, searchProducts } from "@/server/actions";
 import { Button, cx, ProductThumb, Skeleton } from "@/components/ui";
@@ -39,6 +39,8 @@ export function AddProductModal() {
   const close = useDemo((s) => s.closeAdd);
   const mobile = useIsMobile();
   const reduce = useReducedMotion();
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, panelRef);
 
   // Close with Escape
   useEffect(() => {
@@ -64,6 +66,7 @@ export function AddProductModal() {
           className={cx("fixed inset-0 z-50 flex justify-center bg-overlay backdrop-blur-[2px]", mobile ? "items-end p-0" : "items-center p-4")}
         >
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-title"
@@ -262,8 +265,9 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   const toPreview = (p: Preview, suggestedList?: string) => {
     setFound(p);
     // If the user has a list with the suggested name ("Hogar"...), pick it
+    // (otherwise the first list, so a previous choice doesn't carry over)
     const match = lists.find((l) => l.name === suggestedList);
-    if (match) setList(match.id);
+    setList(match?.id ?? lists[0]?.id ?? "");
     // Suggest a target 10% below the current price
     setTarget(String(Math.round(p.price * 0.9)));
     setStep("preview");
@@ -347,8 +351,8 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     }
 
     // Demo: add it to the local store
-    if (found.catalog) addProduct({ ...productFromCatalog(found.catalog, tgt, products.length + 20), list: listId });
-    onClose();
+    // Only close if it was added (it isn't if you already follow it)
+    if (found.catalog && addProduct({ ...productFromCatalog(found.catalog, tgt, products.length + 20), list: listId })) onClose();
   };
 
   const goUrl = () => {
@@ -361,7 +365,10 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
   };
 
   // Suggestions before typing anything (demo only)
-  const suggestions: Hit[] = isAccount ? [] : CATALOG.slice(0, 4).map(catalogHit);
+  // Marked as followed if you already have them, so picking one opens its page
+  const suggestions: Hit[] = isAccount
+    ? []
+    : CATALOG.slice(0, 4).map((c) => ({ ...catalogHit(c), followedId: products.find((p) => p.id === c.slug)?.id }));
   const typed = q.trim().length >= 2;
   const isSearching = searching && typed;
   const shown = typed ? hits : suggestions;

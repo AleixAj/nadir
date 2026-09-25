@@ -162,10 +162,13 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 
 - Better Auth sessions in signed cookies; every Server Action checks the session and that the product belongs to the user.
 - All input validated with Zod and parameterized queries through Drizzle.
-- The automatic check route is protected with a secret; keys are stored as Cloudflare secrets.
+- The automatic check route is protected with a secret (compared in constant time); keys are stored as Cloudflare secrets.
+- Login and sign-up attempts are rate limited per IP, stored in the database so the limit works across every Cloudflare Worker.
 - Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Passwords hashed by Better Auth, and protection so nobody can take over a Google account by registering its email first.
 - Profile photos cropped in the browser and checked on the server (real file type and maximum size).
+- One failing page never stops the automatic check of everything else: the error is saved on that product and the job moves on.
+- Limits can't be bypassed with simultaneous requests (products per account, "Check now" once a minute).
 - Account deletion cascades to all its data, plus privacy and terms pages.
 
 ### Performance and quality
@@ -173,7 +176,8 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 - Public pages are prerendered; the app is rendered on the server only when it depends on the session.
 - Icons imported one by one, font via `next/font`, WebP images of a few KB.
 - Animations only on `transform` and `opacity`, hover effects only with a mouse, and everything disabled under `prefers-reduced-motion`.
-- Metadata for search engines and social networks (Open Graph), `robots.txt`, `sitemap.xml` and a PWA manifest.
+- Metadata for search engines and social networks (Open Graph), a title for every page, `robots.txt`, `sitemap.xml` and a PWA manifest with a maskable icon.
+- Spanish error and 404 pages, keyboard-friendly dialogs (focus stays inside and returns to the button on close) and AA contrast in both themes.
 
 ## Project structure
 

@@ -33,7 +33,14 @@ async function download(start: URL): Promise<{ html: string; finalUrl: string } 
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location");
       if (!loc) return { error: "La tienda ha respondido con una redirección vacía." };
-      const next = checkPublicUrl(new URL(loc, url).toString());
+      // A broken Location header would make new URL() throw
+      let target: string;
+      try {
+        target = new URL(loc, url).toString();
+      } catch {
+        return { error: "La tienda ha respondido con una redirección no válida." };
+      }
+      const next = checkPublicUrl(target);
       if (!next.ok) return { error: next.reason };
       url = next.url;
       continue;

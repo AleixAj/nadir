@@ -162,10 +162,13 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 
 - Sessions de Better Auth en galetes signades; cada Server Action comprova la sessió i que el producte sigui de l'usuari.
 - Validació de totes les entrades amb Zod i consultes parametritzades amb Drizzle.
-- Ruta de revisió automàtica protegida amb una clau secreta; claus desades com a *secrets* de Cloudflare.
+- Ruta de revisió automàtica protegida amb clau secreta (comparada en temps constant); claus desades com a *secrets* de Cloudflare.
+- Límit d'intents d'inici de sessió i registre per IP, desat a la base de dades perquè funcioni a tots els Workers de Cloudflare.
 - Capçaleres de seguretat (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Contrasenyes xifrades per Better Auth i protecció perquè ningú es pugui apropiar d'un compte de Google registrant-ne abans el correu.
 - Fotos de perfil retallades al navegador i comprovades al servidor (tipus real del fitxer i mida màxima).
+- Una pàgina que falla no atura mai la revisió automàtica de la resta: l'error es desa en aquell producte i se segueix amb els altres.
+- Límits que no es poden saltar amb peticions simultànies (productes per compte, «Revisar ara» un cop per minut).
 - Esborrat del compte amb les seves dades en cascada, i pàgines de privacitat i condicions.
 
 ### Rendiment i qualitat
@@ -173,7 +176,8 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 - Pàgines públiques prerenderitzades; l'aplicació es genera al servidor només quan depèn de la sessió.
 - Icones importades una a una, font amb `next/font`, imatges WebP de pocs KB.
 - Animacions només amb `transform` i `opacity`, efectes de *hover* només amb ratolí i tot desactivat amb `prefers-reduced-motion`.
-- Metadades per a cercadors i xarxes socials (Open Graph), `robots.txt`, `sitemap.xml` i manifest PWA.
+- Metadades per a cercadors i xarxes socials (Open Graph), títol propi a cada pàgina, `robots.txt`, `sitemap.xml` i manifest PWA amb icona adaptable.
+- Pàgines d'error i 404 en castellà, diàlegs accessibles amb el teclat (el focus no s'escapa i torna al botó en tancar) i contrast AA als dos temes.
 
 ## Estructura del projecte
 

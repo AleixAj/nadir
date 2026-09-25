@@ -46,6 +46,14 @@ function createAuth() {
       // Allows deleting the account from Settings (products are deleted in cascade)
       deleteUser: { enabled: true },
     },
+    // Limit requests per IP (stricter on login and sign-up), stored in the database
+    rateLimit: {
+      storage: "database",
+      customRules: {
+        "/sign-in/email": { window: 60, max: 5 },
+        "/sign-up/email": { window: 60, max: 3 },
+      },
+    },
     session: {
       // Also keep the session in a signed cookie, so fewer database queries
       cookieCache: { enabled: true, maxAge: 5 * 60 },
@@ -75,7 +83,9 @@ export async function getSession() {
   if (!process.env.DATABASE_URL) return null;
   try {
     return await getAuth().api.getSession({ headers: h });
-  } catch {
+  } catch (err) {
+    // Log it: a database outage would otherwise look like "not logged in"
+    console.error("Could not read the session", err);
     return null;
   }
 }

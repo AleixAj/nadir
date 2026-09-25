@@ -162,10 +162,13 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 
 - Sesiones de Better Auth en cookies firmadas; cada Server Action comprueba la sesión y que el producto sea del usuario.
 - Validación de todas las entradas con Zod y consultas parametrizadas con Drizzle.
-- Ruta de revisión automática protegida con clave secreta; claves guardadas como *secrets* de Cloudflare.
+- Ruta de revisión automática protegida con clave secreta (comparada en tiempo constante); claves guardadas como *secrets* de Cloudflare.
+- Límite de intentos de login y registro por IP, guardado en la base de datos para que funcione en todos los Workers de Cloudflare.
 - Cabeceras de seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Contraseñas cifradas por Better Auth y protección para que nadie pueda apropiarse de una cuenta de Google registrando antes su email.
 - Fotos de perfil recortadas en el navegador y comprobadas en el servidor (tipo real del archivo y tamaño máximo).
+- Una página que falla nunca detiene la revisión automática del resto: el error se guarda en ese producto y se sigue con los demás.
+- Límites que no se pueden saltar con peticiones simultáneas (productos por cuenta, «Revisar ahora» una vez por minuto).
 - Borrado de cuenta con sus datos en cascada, y páginas de privacidad y condiciones.
 
 ### Rendimiento y calidad
@@ -173,7 +176,8 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 - Páginas públicas prerenderizadas; la app se genera en el servidor solo cuando depende de la sesión.
 - Iconos importados uno a uno, fuente con `next/font`, imágenes en WebP de pocos KB.
 - Animaciones solo con `transform` y `opacity`, efectos de *hover* solo con ratón y todo desactivado con `prefers-reduced-motion`.
-- Metadatos para buscadores y redes sociales (Open Graph), `robots.txt`, `sitemap.xml` y manifiesto PWA.
+- Metadatos para buscadores y redes sociales (Open Graph), título propio en cada página, `robots.txt`, `sitemap.xml` y manifiesto PWA con icono adaptable.
+- Páginas de error y 404 en español, diálogos accesibles con teclado (el foco no se escapa y vuelve al botón al cerrar) y contraste AA en los dos temas.
 
 ## Estructura del proyecto
 

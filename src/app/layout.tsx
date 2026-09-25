@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "/",
     siteName: "Nadir",
     title: "Nadir · Compra en el punto más bajo",
     description,
@@ -28,10 +27,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0d0c" },
-  ],
+  // Same as the dark --bg, since the app starts in dark mode
+  themeColor: "#0a0908",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

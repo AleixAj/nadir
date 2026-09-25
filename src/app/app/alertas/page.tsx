@@ -54,8 +54,9 @@ export default function AlertasPage() {
         />
       </div>
 
-      {tab === "activas" && (
-        <Card key="activas" {...enter(1, "overflow-x-auto")}>
+      {/* Desktop: table */}
+      {tab === "activas" && rows.length > 0 && (
+        <Card key="activas" {...enter(1, "hidden overflow-x-auto desk:block")}>
           <div className="min-w-[760px]">
             <div className={cx("grid h-9 items-center gap-4 border-b border-border bg-surface-2 px-4 text-xs font-medium text-text-3", COLS)}>
               <span>Producto</span>
@@ -94,12 +95,55 @@ export default function AlertasPage() {
                 </div>
               );
             })}
-            {rows.length === 0 && (
-              <div className="flex flex-col items-center gap-2 px-6 py-10 text-center text-[13px] text-text-2">
-                <IconBell size={22} className="text-text-3" aria-hidden />
-                No tienes alertas. Ábrelas desde la ficha de cualquier producto.
+          </div>
+        </Card>
+      )}
+
+      {/* Mobile: one card per alert */}
+      {tab === "activas" && rows.length > 0 && (
+        <Card key="activas-mobile" {...enter(1, "overflow-hidden desk:hidden")}>
+          {rows.map((p, i) => {
+            const on = !!alerts[p.id];
+            const left = leftToTarget(p);
+            return (
+              <div
+                key={p.id}
+                className={cx("flex flex-col gap-2.5 px-3.5 py-3 transition-opacity duration-200", i > 0 && "border-t border-border")}
+                style={{ opacity: on ? 1 : 0.55 }}
+              >
+                <div className="flex items-center gap-3">
+                  <Link href={`/app/productos/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3 text-text">
+                    <ProductThumb icon={p.icon} image={p.image} size={44} />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-text-2">
+                        Ahora {eur(p.cur)} · Objetivo <span className="font-semibold text-brand-text">{eurS(p.target!)}</span>
+                      </span>
+                    </span>
+                  </Link>
+                  <Switch on={on} onChange={() => toggleAlert(p.id)} label={"Alerta de " + p.name} />
+                </div>
+                <ProgressBar value={targetProgress(p)} delay={0.15 + i * 0.05} />
+                <div className="flex items-center justify-between gap-3 text-xs text-text-2">
+                  <span>
+                    Faltan {eurS(left)} · {pct1((left / p.cur) * 100)} %
+                  </span>
+                  <span className="flex gap-2">
+                    <IconMail size={16} aria-label="Email" />
+                    <IconBrandTelegram size={16} aria-label="Telegram" />
+                  </span>
+                </div>
               </div>
-            )}
+            );
+          })}
+        </Card>
+      )}
+
+      {tab === "activas" && rows.length === 0 && (
+        <Card key="activas-empty" {...enter(1)}>
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center text-[13px] text-text-2">
+            <IconBell size={22} className="text-text-3" aria-hidden />
+            No tienes alertas. Ábrelas desde la ficha de cualquier producto.
           </div>
         </Card>
       )}

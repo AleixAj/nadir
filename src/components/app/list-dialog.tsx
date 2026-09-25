@@ -1,17 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconCheck, IconTrash, IconX } from "@tabler/icons-react";
 import { Button, cx } from "@/components/ui";
 import { LIST_COLORS, type ProductList } from "@/lib/demo-data";
+import { useDialogFocus } from "@/lib/hooks";
 import { useDemo } from "@/lib/store";
+
+// Names read by screen readers for each colour button
+const COLOR_NAMES: Record<string, string> = {
+  "#ea580c": "naranja",
+  "#dc2626": "rojo",
+  "#db2777": "rosa",
+  "#9333ea": "morado",
+  "#2563eb": "azul",
+  "#0891b2": "cian",
+  "#0d9488": "verde azulado",
+  "#16a34a": "verde",
+  "#ca8a04": "amarillo",
+  "#64748b": "gris",
+};
 
 // Dialog to create a list or edit one (name, colour and delete)
 export function ListDialog() {
   const editing = useDemo((s) => s.listEditor);
   const close = useDemo((s) => s.closeListEditor);
   const lists = useDemo((s) => s.lists);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(!!editing, panelRef);
 
   // Close with Escape
   useEffect(() => {
@@ -36,6 +53,7 @@ export function ListDialog() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-[2px]"
         >
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="list-title"
@@ -123,7 +141,7 @@ function ListForm({ list, onClose }: { list: ProductList | null; onClose: () => 
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                aria-label={`Color ${c}`}
+                aria-label={`Color ${COLOR_NAMES[c] ?? c}`}
                 aria-pressed={color === c}
                 className="press grid size-7 place-items-center rounded-full ring-offset-2 ring-offset-surface transition-shadow"
                 style={{ background: c, boxShadow: color === c ? `0 0 0 2px var(--surface), 0 0 0 4px ${c}` : undefined }}
@@ -135,7 +153,8 @@ function ListForm({ list, onClose }: { list: ProductList | null; onClose: () => 
             <label
               title="Otro color"
               className={cx(
-                "press relative grid size-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-border-strong text-xs text-text-3",
+                // has-focus-visible: show the focus ring here, the real input is invisible
+                "press relative grid size-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-border-strong text-xs text-text-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-solid has-focus-visible:outline-[var(--ring)]",
                 customColor && "border-solid",
               )}
               style={customColor ? { background: color, boxShadow: `0 0 0 2px var(--surface), 0 0 0 4px ${color}` } : undefined}

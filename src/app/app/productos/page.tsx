@@ -205,7 +205,9 @@ export default function ProductosPage() {
       )}
 
       {ready && rows.length === 0 && (
-        <p className="m-0 p-8 text-center text-[13px] text-text-2">No hay productos que coincidan con «{search}».</p>
+        <p className="m-0 p-8 text-center text-[13px] text-text-2">
+          {search.trim() ? `No hay productos que coincidan con «${search}».` : "Esta lista todavía no tiene productos."}
+        </p>
       )}
     </>
   );
