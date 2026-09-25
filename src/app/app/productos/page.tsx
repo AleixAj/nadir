@@ -12,9 +12,9 @@ import {
   IconPlus,
   IconRefresh,
   IconSearch,
-  IconSelector,
 } from "@tabler/icons-react";
 import { useLoading } from "@/components/app/shell";
+import { SelectMenu } from "@/components/select-menu";
 import { Button, ChangeBadge, changeColor, cx, EmptyMark, enter, ProductThumb, Segmented, Skeleton, Sparkline } from "@/components/ui";
 import { minDate, type Product } from "@/lib/demo-data";
 import { eur, eurS } from "@/lib/format";
@@ -23,6 +23,13 @@ import { listName, NO_LIST, useDemo, useProducts, type ListFilter } from "@/lib/
 
 // Shared column widths for the desktop table header, rows and skeletons
 const COLS = "grid-cols-[minmax(240px,1fr)_108px_150px_124px_112px_164px]";
+const SORT_OPTIONS = [
+  { value: "drop", label: "Mayor bajada (7 d)" },
+  { value: "near", label: "Más cerca del objetivo" },
+  { value: "price", label: "Precio: de menor a mayor" },
+  { value: "name", label: "Nombre" },
+];
+
 function inList(product: Product, filter: ListFilter) {
   if (filter === "Todas") return true;
   if (filter === NO_LIST) return product.list === null;
@@ -98,22 +105,16 @@ export default function ProductosPage() {
           <span className="desk:hidden">Lista</span>
         </Button>
         <div className="flex-1" />
-        <label className="inline-flex items-center gap-2 text-[13px] text-text-2">
-          Ordenar por
-          <span className="relative inline-flex">
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              className="h-9 cursor-pointer appearance-none rounded-md border border-border-strong bg-surface pr-[30px] pl-2.5 text-[13px] text-text desk:h-7"
-            >
-              <option value="drop">Mayor bajada (7 d)</option>
-              <option value="near">Más cerca del objetivo</option>
-              <option value="price">Precio: de menor a mayor</option>
-              <option value="name">Nombre</option>
-            </select>
-            <IconSelector size={14} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-text-3" aria-hidden />
-          </span>
-        </label>
+        <div className="inline-flex items-center gap-2 text-[13px] text-text-2">
+          <span aria-hidden>Ordenar por</span>
+          <SelectMenu
+            label="Ordenar por"
+            value={sort}
+            onChange={(v) => setSort(v as SortKey)}
+            options={SORT_OPTIONS}
+            className="h-9 rounded-md border border-border-strong bg-surface px-2.5 text-[13px] text-text transition-colors hover:border-brand-soft-border desk:h-7"
+          />
+        </div>
       </div>
 
       {errored && (

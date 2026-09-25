@@ -12,7 +12,6 @@ import {
   IconLinkOff,
   IconLoader2,
   IconSearch,
-  IconSelector,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -26,6 +25,7 @@ import {
   type ProductIcon,
 } from "@/lib/demo-data";
 import { eur, parsePrice } from "@/lib/format";
+import { SelectMenu } from "@/components/select-menu";
 import { useDialogFocus, useIsMobile } from "@/lib/hooks";
 import { useDemo, useIsAccount } from "@/lib/store";
 import { previewProduct, searchProducts } from "@/server/actions";
@@ -648,24 +648,19 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                       <span className="text-text-3">€</span>
                     </span>
                   </label>
-                  <label className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
-                    Lista
-                    <span className="relative flex">
-                      <select
-                        value={list}
-                        onChange={(e) => setList(e.target.value)}
-                        className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-border-strong bg-surface pr-7 pl-2.5 text-[13px] text-text"
-                      >
-                        {lists.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}
-                          </option>
-                        ))}
-                        <option value="">Sin lista</option>
-                      </select>
-                      <IconSelector size={14} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-text-3" aria-hidden />
-                    </span>
-                  </label>
+                  <div className="flex flex-col gap-1.5 text-xs font-medium text-text-2">
+                    <span aria-hidden>Lista</span>
+                    <SelectMenu
+                      label="Lista"
+                      value={list}
+                      onChange={setList}
+                      options={[
+                        ...lists.map((l) => ({ value: l.id, label: l.name, color: l.color })),
+                        { value: "", label: "Sin lista", color: "var(--text-3)" },
+                      ]}
+                      className="h-10 w-full rounded-lg border border-border-strong bg-surface px-2.5 text-[13px] font-normal text-text transition-colors hover:border-brand-soft-border"
+                    />
+                  </div>
                 </div>
               </Fragment>
             )}

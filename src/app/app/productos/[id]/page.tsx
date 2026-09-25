@@ -14,11 +14,11 @@ import {
   IconExternalLink,
   IconMail,
   IconRefresh,
-  IconSelector,
   IconTrash,
   IconTruckDelivery,
 } from "@tabler/icons-react";
 import { PriceChart } from "@/components/app/price-chart";
+import { SelectMenu } from "@/components/select-menu";
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, ChangeBadge, CountUp, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
 import { RANGES, type RangeKey, type Chart } from "@/lib/chart";
@@ -642,26 +642,15 @@ function ProductMenu({ p }: { p: Product }) {
 function ListPicker({ p }: { p: Product }) {
   const lists = useDemo((s) => s.lists);
   const moveProduct = useDemo((s) => s.moveProduct);
-  const current = lists.find((l) => l.id === p.list);
+  // "" stands for "no list"
+  const options = [...lists.map((l) => ({ value: l.id, label: l.name, color: l.color })), { value: "", label: "Sin lista", color: "var(--text-3)" }];
   return (
-    <label className="relative inline-flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full bg-surface-3 pr-6 pl-2 text-xs font-medium text-text transition-colors hover:bg-border has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-solid has-focus-visible:outline-[var(--ring)]">
-      <span className="size-2 rounded-[2px]" style={{ background: current?.color ?? "var(--text-3)" }} />
-      {current?.name ?? "Sin lista"}
-      <IconSelector size={12} className="absolute right-1.5 text-text-3" aria-hidden />
-      {/* Invisible select on top of the chip, so it opens the native menu */}
-      <select
-        aria-label="Cambiar de lista"
-        value={p.list ?? ""}
-        onChange={(e) => moveProduct(p.id, e.target.value || null)}
-        className="absolute inset-0 cursor-pointer opacity-0"
-      >
-        {lists.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.name}
-          </option>
-        ))}
-        <option value="">Sin lista</option>
-      </select>
-    </label>
+    <SelectMenu
+      label="Cambiar de lista"
+      value={p.list ?? ""}
+      onChange={(v) => moveProduct(p.id, v || null)}
+      options={options}
+      className="h-[22px] rounded-full bg-surface-3 px-2 text-xs font-medium text-text transition-colors hover:bg-border"
+    />
   );
 }
