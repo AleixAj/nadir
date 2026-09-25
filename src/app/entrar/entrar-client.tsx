@@ -4,14 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { motion } from "motion/react";
-import {
-  IconAlertCircle,
-  IconEye,
-  IconEyeOff,
-  IconLoader2,
-  IconMailCheck,
-  IconPlayerPlay,
-} from "@tabler/icons-react";
+import { IconAlertCircle, IconEye, IconEyeOff, IconLoader2, IconMailCheck, IconPlayerPlay } from "@tabler/icons-react";
 import { btn, Logo } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
@@ -31,29 +24,20 @@ function GoogleG() {
         fill="#4CAF50"
         d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
       />
-      <path
-        fill="#1976D2"
-        d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"
-      />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
     </svg>
   );
 }
 
 // Turns Better Auth error codes into messages for the user
 function emailErrorMessage(code: string | undefined): string {
-  if (
-    code === "USER_ALREADY_EXISTS" ||
-    code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
-  ) {
+  if (code === "USER_ALREADY_EXISTS" || code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
     return "Ya existe una cuenta con este email. Entra con tu contraseña o con Google.";
   }
-  if (code === "INVALID_EMAIL_OR_PASSWORD")
-    return "El email o la contraseña no son correctos.";
+  if (code === "INVALID_EMAIL_OR_PASSWORD") return "El email o la contraseña no son correctos.";
   if (code === "INVALID_EMAIL") return "Escribe un email válido.";
-  if (code === "PASSWORD_TOO_SHORT")
-    return "La contraseña tiene que tener al menos 8 caracteres.";
-  if (code === "TOO_MANY_REQUESTS")
-    return "Demasiados intentos. Espera un minuto y vuelve a probar.";
+  if (code === "PASSWORD_TOO_SHORT") return "La contraseña tiene que tener al menos 8 caracteres.";
+  if (code === "TOO_MANY_REQUESTS") return "Demasiados intentos. Espera un minuto y vuelve a probar.";
   if (code === "EMAIL_NOT_VERIFIED") return "Aún no has confirmado tu email.";
   return "No se ha podido completar. Inténtalo de nuevo.";
 }
@@ -158,8 +142,7 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
         aria-hidden
         className="pointer-events-none absolute top-[-200px] left-1/2 h-[460px] w-[760px] -translate-x-1/2 rounded-full blur-3xl"
         style={{
-          background:
-            "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 18%, transparent), transparent)",
+          background: "radial-gradient(closest-side, color-mix(in oklab, var(--brand) 18%, transparent), transparent)",
         }}
       />
       <header className="relative flex h-[60px] items-center px-4 desk:px-8">
@@ -176,13 +159,9 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
           className="flex w-full max-w-[400px] flex-col gap-5"
         >
           <div className="flex flex-col gap-1.5 text-center">
-            <h1 className="m-0 text-2xl font-semibold tracking-[-0.025em]">
-              {registro ? "Crea tu cuenta" : "Entra en Nadir"}
-            </h1>
+            <h1 className="m-0 text-2xl font-semibold tracking-[-0.025em]">{registro ? "Crea tu cuenta" : "Entra en Nadir"}</h1>
             <p className="m-0 text-sm text-text-2">
-              {registro
-                ? "Gratis. Con Google o con tu email."
-                : "Con tu cuenta de Google o con tu email."}
+              {registro ? "Gratis. Con Google o con tu email." : "Con tu cuenta de Google o con tu email."}
             </p>
           </div>
           {sentTo ? (
@@ -191,26 +170,16 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                 <IconMailCheck size={24} aria-hidden />
               </span>
               <h2 className="m-0 text-lg font-semibold">Revisa tu email</h2>
-              <p
-                role="status"
-                className="m-0 text-sm leading-relaxed text-text-2"
-              >
-                Te hemos enviado un enlace a{" "}
-                <strong className="text-text">{sentTo}</strong>. Ábrelo para
-                confirmar tu cuenta y entrar. Si no lo ves, mira en la carpeta
-                de spam.
+              <p role="status" className="m-0 text-sm leading-relaxed text-text-2">
+                Te hemos enviado un enlace a <strong className="text-text">{sentTo}</strong>. Ábrelo para confirmar tu cuenta y entrar. Si
+                no lo ves, mira en la carpeta de spam.
               </p>
               {error && (
                 <p role="alert" className="m-0 text-xs text-up">
                   {error}
                 </p>
               )}
-              <button
-                type="button"
-                onClick={resend}
-                disabled={resent}
-                className={btn("secondary", "md", "mt-1 w-full")}
-              >
+              <button type="button" onClick={resend} disabled={resent} className={btn("primary", "lg", "mt-1 h-11 w-full text-sm")}>
                 {resent ? "Enlace reenviado" : "Reenviar el enlace"}
               </button>
               <button
@@ -232,23 +201,14 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                 disabled={!googleReady || busy}
                 className={btn("secondary", "lg", "h-11 w-full text-sm")}
               >
-                {loading ? (
-                  <IconLoader2 size={18} className="animate-spin" aria-hidden />
-                ) : (
-                  <GoogleG />
-                )}
+                {loading ? <IconLoader2 size={18} className="animate-spin" aria-hidden /> : <GoogleG />}
                 {loading ? "Conectando con Google…" : "Continuar con Google"}
               </button>
               {!googleReady && (
-                <p className="m-0 -mt-1 text-center text-xs text-text-3">
-                  El inicio de sesión con Google aún no está configurado.
-                </p>
+                <p className="m-0 -mt-1 text-center text-xs text-text-3">El inicio de sesión con Google aún no está configurado.</p>
               )}
               {error && (
-                <p
-                  role="alert"
-                  className="m-0 -mt-1 flex items-center justify-center gap-1.5 text-center text-xs text-up"
-                >
+                <p role="alert" className="m-0 -mt-1 flex items-center justify-center gap-1.5 text-center text-xs text-up">
                   <IconAlertCircle size={14} aria-hidden />
                   {error}
                 </p>
@@ -287,44 +247,22 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                     maxLength={128}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={
-                      registro
-                        ? "Contraseña (mínimo 8 caracteres)"
-                        : "Contraseña"
-                    }
+                    placeholder={registro ? "Contraseña (mínimo 8 caracteres)" : "Contraseña"}
                     aria-label="Contraseña"
-                    autoComplete={
-                      registro ? "new-password" : "current-password"
-                    }
+                    autoComplete={registro ? "new-password" : "current-password"}
                     className={INPUT + " pr-11"}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={
-                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                    }
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-text-3 transition-colors hover:text-text"
                   >
-                    {showPassword ? (
-                      <IconEyeOff size={17} aria-hidden />
-                    ) : (
-                      <IconEye size={17} aria-hidden />
-                    )}
+                    {showPassword ? <IconEyeOff size={17} aria-hidden /> : <IconEye size={17} aria-hidden />}
                   </button>
                 </div>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className={btn("secondary", "lg", "h-11 w-full text-sm")}
-                >
-                  {sending && (
-                    <IconLoader2
-                      size={18}
-                      className="animate-spin"
-                      aria-hidden
-                    />
-                  )}
+                <button type="submit" disabled={busy} className={btn("primary", "lg", "h-11 w-full text-sm")}>
+                  {sending && <IconLoader2 size={18} className="animate-spin" aria-hidden />}
                   {registro ? "Crear cuenta" : "Entrar"}
                 </button>
                 {!registro && (
@@ -350,17 +288,11 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                 <span className="h-px flex-1 bg-border" />o
                 <span className="h-px flex-1 bg-border" />
               </div>
-              <Link
-                href="/app?demo=1"
-                className={btn("primary", "lg", "h-11 w-full text-sm")}
-              >
+              <Link href="/app?demo=1" className={btn("primary", "lg", "h-11 w-full text-sm")}>
                 <IconPlayerPlay size={16} aria-hidden />
                 Entrar como demo
               </Link>
-              <p className="m-0 text-center text-xs text-text-3">
-                Cuenta de ejemplo con 12 productos, alertas e histórico de
-                precios.
-              </p>
+              <p className="m-0 text-center text-xs text-text-3">Cuenta de ejemplo con 12 productos, alertas e histórico de precios.</p>
             </div>
           )}
           <p className="m-0 text-center text-xs text-text-3">

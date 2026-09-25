@@ -1,5 +1,6 @@
 import "server-only";
 import { betterAuth } from "better-auth";
+import { eq } from "drizzle-orm";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
@@ -7,7 +8,7 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { DEFAULT_LISTS } from "@/lib/demo-data";
 import { sendEmail } from "@/server/email";
-import { resetPasswordTemplate, verifyEmailTemplate } from "@/server/email-templates";
+import { accountExistsTemplate, resetPasswordTemplate, verifyEmailTemplate } from "@/server/email-templates";
 
 export const isGoogleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -29,6 +30,14 @@ function createAuth() {
       },
       // After changing the password, log out every other device
       revokeSessionsOnPasswordReset: true,
+      // Signing up with an email that already has an account: the page shows the same
+      // "check your email" message (so nobody can find out who is registered),
+      // and the owner gets an email explaining how to log in
+      onExistingUserSignUp: async ({ user }) => {
+        const logins = await db.select({ providerId: schema.account.providerId }).from(schema.account).where(eq(schema.account.userId, user.id));
+        const hasGoogle = logins.some((l) => l.providerId === "google");
+        await sendEmail({ to: user.email, ...accountExistsTemplate(user.name, hasGoogle) });
+      },
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }) => {

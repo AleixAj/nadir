@@ -122,3 +122,25 @@ export function priceAlertTemplate(a: { productName: string; store: string; pric
     text: `${a.productName} ha bajado a ${price} en ${a.store}, por debajo de tu objetivo de ${target}.\n\nVer el producto: ${url}\n\nPuedes desactivar los avisos por email en Ajustes.`,
   };
 }
+
+// Someone tried to sign up with an email that already has an account.
+// We tell the owner how to get in, instead of saying anything on the sign-up page.
+export function accountExistsTemplate(name: string, hasGoogle: boolean) {
+  const base = site();
+  const how = hasGoogle
+    ? "Tu cuenta usa Google: entra con el botón «Continuar con Google»."
+    : "Entra con tu email y tu contraseña. Si no la recuerdas, puedes elegir una nueva.";
+  const url = hasGoogle ? `${base}/entrar` : `${base}/entrar/recuperar`;
+  const label = hasGoogle ? "Ir a entrar" : "Elegir una contraseña nueva";
+  return {
+    subject: "Ya tienes una cuenta en Nadir",
+    html: layout(
+      "Alguien ha intentado crear una cuenta con tu email.",
+      h1(`Hola, ${esc(name)}`) +
+        p(`Alguien (seguramente tú) ha intentado crear una cuenta en Nadir con este email, pero ya tienes una. ${how}`) +
+        button(url, label) +
+        small("Si no has sido tú, no tienes que hacer nada: tu cuenta sigue igual."),
+    ),
+    text: `Hola, ${name}\n\nAlguien ha intentado crear una cuenta en Nadir con este email, pero ya tienes una. ${how}\n${url}\n\nSi no has sido tú, no tienes que hacer nada.`,
+  };
+}
