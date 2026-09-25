@@ -15,7 +15,9 @@
   // based on the frequency each user picked (1 h, 6 h or 24 h)
   "triggers": { "crons": ["*/10 * * * *"] },
   "vars": {
-    "BETTER_AUTH_URL": "https://nadir.aleixaj.com"
+    "BETTER_AUTH_URL": "https://nadir.aleixaj.com",
+    // Sender of the emails (the domain must be verified in Resend)
+    "EMAIL_FROM": "Nadir <avisos@aleixaj.com>"
   },
   "observability": { "enabled": true }
 }

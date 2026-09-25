@@ -13,6 +13,7 @@ import { normalizeText } from "@/lib/catalog";
 import { simulatedHistory } from "./simulation";
 import { getAccountData } from "./account";
 import { checkProduct } from "./checks";
+import { createAlert } from "./alerts";
 import { fetchProduct } from "./fetch-product";
 
 type SessionUser = { id: string; name: string; email: string; image?: string | null };
@@ -78,7 +79,7 @@ async function alertIfReached(productId: string, targetCents: number) {
       .limit(1);
     if (!wentUp) return;
   }
-  await db.insert(alertEvent).values({ productId, priceCents: last.priceCents, targetCents });
+  await createAlert(productId, last.priceCents, targetCents);
 }
 
 // Returns the list id only if that list belongs to the user (otherwise no list)

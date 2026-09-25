@@ -1,8 +1,9 @@
 import "server-only";
 import { desc, eq, min } from "drizzle-orm";
 import { db } from "@/db";
-import { alertEvent, catalogOffer, pricePoint, product } from "@/db/schema";
+import { catalogOffer, pricePoint, product } from "@/db/schema";
 import { crossedTarget } from "@/lib/history";
+import { createAlert } from "./alerts";
 import { fetchProduct } from "./fetch-product";
 import { nextSimulatedPrice } from "./simulation";
 
@@ -53,7 +54,7 @@ async function checkStore(p: ProductRecord): Promise<CheckResult> {
     .where(eq(product.id, p.id));
 
   if (crossedTarget(prev?.priceCents ?? null, priceCents, p.targetCents, p.alertOn)) {
-    await db.insert(alertEvent).values({ productId: p.id, priceCents, targetCents: p.targetCents! });
+    await createAlert(p.id, priceCents, p.targetCents!);
   }
   return { ok: true, priceCents };
 }
@@ -81,7 +82,7 @@ async function checkSimulated(p: ProductRecord) {
   await db.insert(pricePoint).values({ productId: p.id, priceCents, checkedAt: now });
   await db.update(product).set({ lastCheckedAt: now, lastError: null }).where(eq(product.id, p.id));
   if (crossedTarget(prevCents, priceCents, p.targetCents, p.alertOn)) {
-    await db.insert(alertEvent).values({ productId: p.id, priceCents, targetCents: p.targetCents! });
+    await createAlert(p.id, priceCents, p.targetCents!);
   }
   return { ok: true, priceCents };
 }

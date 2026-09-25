@@ -71,9 +71,10 @@ El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de p
   - comparativa de tiendas ordenada por precio final, con la opción «Mejor» destacada;
   - alerta de precio con interruptor, atajos (mínimo histórico, −5 %, −10 %) y canales de aviso;
   - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir».
-- **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados.
+- **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados. Cuando un precio baja del objetivo, te llega también **por email**.
 - **Tiendas**: todas las tiendas donde se venden tus productos, cuántos vende cada una, última revisión y reintento si falla.
 - **Ajustes**: perfil (nombre y foto, que puedes subir desde tu ordenador), cambio de contraseña, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
+- **Cuentas con email**: hay que confirmar el email antes de entrar, y si olvidas la contraseña te llega un enlace para elegir otra.
 - **Instalable como app** (PWA) en el móvil o el escritorio.
 
 ## Catálogo de prueba
@@ -129,6 +130,7 @@ El resultado son **347 productos reales, todos con precio en 2 tiendas o más** 
 | Animación | Motion 13 + CSS | Motion para lo interactivo (modal, toasts, indicadores); CSS para lo predecible (entradas, brillos, dibujo de la gráfica). |
 | Base de datos | Neon (Postgres) + Drizzle ORM | Postgres sin servidor, consultas tipadas y migraciones versionadas. |
 | Login | Better Auth | Google o email y contraseña (cifrada). Sesiones guardadas en nuestra base de datos. |
+| Emails | Resend | Confirmación de cuenta, cambio de contraseña y avisos de precio, con plantillas HTML propias en los colores de la web. |
 | Servidor | Server Actions + Zod | Cada acción comprueba la sesión, la propiedad del dato y valida la entrada. |
 | Tests | Vitest | Tests unitarios de la lógica de precios, gráfica, lectura de páginas, seguridad de URLs y catálogo. |
 | Despliegue | Cloudflare Workers (OpenNext) | Despliegue continuo desde GitHub y un Cron Trigger que revisa los precios. |
@@ -165,7 +167,7 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 - Ruta de revisión automática protegida con clave secreta (comparada en tiempo constante); claves guardadas como *secrets* de Cloudflare.
 - Límite de intentos de login y registro por IP, guardado en la base de datos para que funcione en todos los Workers de Cloudflare.
 - Cabeceras de seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
-- Contraseñas cifradas por Better Auth y protección para que nadie pueda apropiarse de una cuenta de Google registrando antes su email.
+- Contraseñas cifradas por Better Auth, email confirmado antes del primer acceso y protección para que nadie pueda apropiarse de una cuenta de Google registrando antes su email.
 - Fotos de perfil recortadas en el navegador y comprobadas en el servidor (tipo real del archivo y tamaño máximo).
 - Una página que falla nunca detiene la revisión automática del resto: el error se guarda en ese producto y se sigue con los demás.
 - Límites que no se pueden saltar con peticiones simultáneas (productos por cuenta, «Revisar ahora» una vez por minuto).
@@ -210,7 +212,7 @@ npm install
 npm run dev
 ```
 
-La demo funciona sin configurar nada. Para las cuentas reales: copia `.env.example` como `.env.local`, rellena la base de datos y las claves de Google, y ejecuta `npm run db:migrate`. Para cargar el catálogo de prueba hacen falta además claves de SerpApi y Serper y `npm run catalog:seed` (las búsquedas se guardan en caché y no se repiten).
+La demo funciona sin configurar nada. Para las cuentas reales: copia `.env.example` como `.env.local`, rellena la base de datos, las claves de Google y la de Resend, y ejecuta `npm run db:migrate`. Sin clave de Resend, en local los emails se muestran en la consola del servidor. Para cargar el catálogo de prueba hacen falta además claves de SerpApi y Serper y `npm run catalog:seed` (las búsquedas se guardan en caché y no se repiten).
 
 ## Scripts
 
@@ -232,7 +234,8 @@ npm run deploy        # despliega en Cloudflare Workers
 - [x] **Cuentas reales**: Google o email, perfil con foto, base de datos, datos por usuario, borrado de cuenta.
 - [x] **Motor de precios**: lectura de páginas, catálogo de prueba, histórico, revisión programada y avisos en la app.
 - [x] **Despliegue** en [nadir.aleixaj.com](https://nadir.aleixaj.com) con despliegue continuo.
-- [ ] **Emails** con React Email + Resend: avisos de precio, verificación del email y recuperar la contraseña. Después, Telegram.
+- [x] **Emails** con Resend: confirmación de cuenta, cambio de contraseña y avisos de precio.
+- [ ] **Avisos por Telegram**.
 - [ ] **Datos de producción**: catálogos de afiliados de las tiendas en lugar del catálogo de prueba.
 - [ ] **Tests de extremo a extremo** con Playwright.
 

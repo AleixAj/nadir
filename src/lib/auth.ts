@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { DEFAULT_LISTS } from "@/lib/demo-data";
+import { sendEmail } from "@/server/email";
+import { resetPasswordTemplate, verifyEmailTemplate } from "@/server/email-templates";
 
 export const isGoogleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -14,13 +16,29 @@ function createAuth() {
     baseURL: process.env.BETTER_AUTH_URL,
     secret: process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "pg", schema }),
-    // Sign up and log in with email and password (no email verification yet)
+    // Sign up and log in with email and password.
+    // The email has to be confirmed before the first login.
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 8,
       maxPasswordLength: 128,
-      // Log the user in right after creating the account
-      autoSignIn: true,
+      requireEmailVerification: true,
+      // "Forgot your password": emails a link to /entrar/nueva-contrasena
+      sendResetPassword: async ({ user, url }) => {
+        await sendEmail({ to: user.email, ...resetPasswordTemplate(user.name, url) });
+      },
+      // After changing the password, log out every other device
+      revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendEmail({ to: user.email, ...verifyEmailTemplate(user.name, url) });
+      },
+      sendOnSignUp: true,
+      // Trying to log in without confirming sends a new link
+      sendOnSignIn: true,
+      // Clicking the link logs the user in
+      autoSignInAfterVerification: true,
     },
     socialProviders: {
       google: {
@@ -52,6 +70,9 @@ function createAuth() {
       customRules: {
         "/sign-in/email": { window: 60, max: 5 },
         "/sign-up/email": { window: 60, max: 3 },
+        // Emails cost money and can be abused, so these are stricter
+        "/send-verification-email": { window: 60, max: 2 },
+        "/request-password-reset": { window: 60, max: 2 },
       },
     },
     session: {

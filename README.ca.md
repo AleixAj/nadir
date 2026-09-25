@@ -71,9 +71,10 @@ El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfoli
   - comparativa de botigues ordenada pel preu final, amb l'opció «Millor» destacada;
   - alerta de preu amb interruptor, dreceres (mínim històric, −5 %, −10 %) i canals d'avís;
   - resum del període, «Revisar el preu ara» i «Deixar de seguir».
-- **Alertes** actives amb el progrés cap a l'objectiu, i historial d'avisos generats.
+- **Alertes** actives amb el progrés cap a l'objectiu, i historial d'avisos generats. Quan un preu baixa de l'objectiu, també t'arriba **per correu**.
 - **Botigues**: totes les botigues on es venen els teus productes, quants en ven cadascuna, última revisió i reintent si falla.
 - **Configuració**: perfil (nom i foto, que pots pujar des del teu ordinador), canvi de contrasenya, canals, freqüència de revisió, tema, tancar la sessió i eliminar el compte amb totes les seves dades.
+- **Comptes amb correu**: cal confirmar el correu abans d'entrar, i si oblides la contrasenya t'arriba un enllaç per triar-ne una altra.
 - **Instal·lable com a aplicació** (PWA) al mòbil o a l'escriptori.
 
 ## Catàleg de prova
@@ -129,6 +130,7 @@ El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (ga
 | Animació | Motion 13 + CSS | Motion per al que és interactiu (diàleg, toasts, indicadors); CSS per al que és previsible (entrades, brillantors, dibuix de la gràfica). |
 | Base de dades | Neon (Postgres) + Drizzle ORM | Postgres sense servidor, consultes tipades i migracions versionades. |
 | Inici de sessió | Better Auth | Google o correu i contrasenya (xifrada). Sessions desades a la nostra base de dades. |
+| Correus | Resend | Confirmació del compte, canvi de contrasenya i avisos de preu, amb plantilles HTML pròpies amb els colors de la web. |
 | Servidor | Server Actions + Zod | Cada acció comprova la sessió i la propietat de la dada, i valida l'entrada. |
 | Tests | Vitest | Tests unitaris de la lògica de preus, gràfica, lectura de pàgines, seguretat de les URL i catàleg. |
 | Desplegament | Cloudflare Workers (OpenNext) | Desplegament continu des de GitHub i un Cron Trigger que revisa els preus. |
@@ -165,7 +167,7 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 - Ruta de revisió automàtica protegida amb clau secreta (comparada en temps constant); claus desades com a *secrets* de Cloudflare.
 - Límit d'intents d'inici de sessió i registre per IP, desat a la base de dades perquè funcioni a tots els Workers de Cloudflare.
 - Capçaleres de seguretat (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
-- Contrasenyes xifrades per Better Auth i protecció perquè ningú es pugui apropiar d'un compte de Google registrant-ne abans el correu.
+- Contrasenyes xifrades per Better Auth, correu confirmat abans del primer accés i protecció perquè ningú es pugui apropiar d'un compte de Google registrant-ne abans el correu.
 - Fotos de perfil retallades al navegador i comprovades al servidor (tipus real del fitxer i mida màxima).
 - Una pàgina que falla no atura mai la revisió automàtica de la resta: l'error es desa en aquell producte i se segueix amb els altres.
 - Límits que no es poden saltar amb peticions simultànies (productes per compte, «Revisar ara» un cop per minut).
@@ -210,7 +212,7 @@ npm install
 npm run dev
 ```
 
-La demo funciona sense configurar res. Per als comptes reals: copia `.env.example` com a `.env.local`, omple la base de dades i les claus de Google, i executa `npm run db:migrate`. Per carregar el catàleg de prova calen, a més, claus de SerpApi i Serper i `npm run catalog:seed` (les cerques es desen a la memòria cau i no es repeteixen).
+La demo funciona sense configurar res. Per als comptes reals: copia `.env.example` com a `.env.local`, omple la base de dades, les claus de Google i la de Resend, i executa `npm run db:migrate`. Sense clau de Resend, en local els correus es mostren a la consola del servidor. Per carregar el catàleg de prova calen, a més, claus de SerpApi i Serper i `npm run catalog:seed` (les cerques es desen a la memòria cau i no es repeteixen).
 
 ## Scripts
 
@@ -232,7 +234,8 @@ npm run deploy        # desplega a Cloudflare Workers
 - [x] **Comptes reals**: Google o correu, perfil amb foto, base de dades, dades per usuari, esborrat del compte.
 - [x] **Motor de preus**: lectura de pàgines, catàleg de prova, historial, revisió programada i avisos a l'aplicació.
 - [x] **Desplegament** a [nadir.aleixaj.com](https://nadir.aleixaj.com) amb desplegament continu.
-- [ ] **Correus** amb React Email + Resend: avisos de preu, verificació del correu i recuperar la contrasenya. Després, Telegram.
+- [x] **Correus** amb Resend: confirmació del compte, canvi de contrasenya i avisos de preu.
+- [ ] **Avisos per Telegram**.
 - [ ] **Dades de producció**: catàlegs d'afiliats de les botigues en lloc del catàleg de prova.
 - [ ] **Tests d'extrem a extrem** amb Playwright.
 

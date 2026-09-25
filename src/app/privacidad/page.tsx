@@ -41,6 +41,11 @@ export default function PrivacidadPage() {
           Únicamente para que la aplicación funcione: identificarte, guardar tus productos, revisar sus precios y avisarte cuando
           bajen. No vendemos ni compartimos tus datos con terceros, no mostramos publicidad y no usamos herramientas de seguimiento.
         </p>
+        <p>
+          Solo te escribimos para confirmar tu email, para cambiar la contraseña si lo pides y con los avisos de precio que actives
+          (puedes desactivarlos en Ajustes). Los emails se envían a través de Resend, que solo recibe tu dirección y el contenido del
+          mensaje.
+        </p>
       </section>
       <section>
         <h2>Dónde se guardan</h2>

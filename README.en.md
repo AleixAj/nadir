@@ -71,9 +71,10 @@ The name comes from *nadir*, the lowest point of a curve. It is a portfolio proj
   - store comparison sorted by final price, with the best option highlighted;
   - price alert with a toggle, shortcuts (all-time low, −5 %, −10 %) and notification channels;
   - period summary, “Check price now” and “Stop tracking”.
-- **Alerts**: active alerts with progress towards the target, plus a history of generated notifications.
+- **Alerts**: active alerts with progress towards the target, plus a history of generated notifications. When a price drops below the target you also get an **email**.
 - **Stores**: every store that sells your products, how many each one sells, last check and retry on failure.
 - **Settings**: profile (name and a photo you can upload from your computer), password change, channels, check frequency, theme, sign out and delete the account with all its data.
+- **Email accounts**: the email has to be confirmed before the first login, and a forgotten password can be reset with an emailed link.
 - **Installable as an app** (PWA) on mobile or desktop.
 
 ## Test catalog
@@ -129,6 +130,7 @@ The result is **347 real products, all with prices from 2 or more stores** (almo
 | Animation | Motion 13 + CSS | Motion for interactive parts (dialog, toasts, indicators); CSS for predictable ones (enter animations, shine, chart drawing). |
 | Database | Neon (Postgres) + Drizzle ORM | Serverless Postgres, typed queries and versioned migrations. |
 | Auth | Better Auth | Google or email and password (hashed). Sessions stored in our own database. |
+| Emails | Resend | Account confirmation, password reset and price alerts, with custom HTML templates in the site's colours. |
 | Server | Server Actions + Zod | Every action checks the session and data ownership, and validates input. |
 | Tests | Vitest | Unit tests for pricing logic, chart, page parsing, URL safety and the catalog. |
 | Deployment | Cloudflare Workers (OpenNext) | Continuous deployment from GitHub and a Cron Trigger that checks prices. |
@@ -165,7 +167,7 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 - The automatic check route is protected with a secret (compared in constant time); keys are stored as Cloudflare secrets.
 - Login and sign-up attempts are rate limited per IP, stored in the database so the limit works across every Cloudflare Worker.
 - Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
-- Passwords hashed by Better Auth, and protection so nobody can take over a Google account by registering its email first.
+- Passwords hashed by Better Auth, email confirmed before the first login, and protection so nobody can take over a Google account by registering its email first.
 - Profile photos cropped in the browser and checked on the server (real file type and maximum size).
 - One failing page never stops the automatic check of everything else: the error is saved on that product and the job moves on.
 - Limits can't be bypassed with simultaneous requests (products per account, "Check now" once a minute).
@@ -210,7 +212,7 @@ npm install
 npm run dev
 ```
 
-The demo works with no setup. For real accounts: copy `.env.example` to `.env.local`, fill in the database and Google keys, and run `npm run db:migrate`. Loading the test catalog also needs SerpApi and Serper keys and `npm run catalog:seed` (searches are cached and never repeated).
+The demo works with no setup. For real accounts: copy `.env.example` to `.env.local`, fill in the database, Google and Resend keys, and run `npm run db:migrate`. Without a Resend key, emails are printed in the server console when running locally. Loading the test catalog also needs SerpApi and Serper keys and `npm run catalog:seed` (searches are cached and never repeated).
 
 ## Scripts
 
@@ -232,7 +234,8 @@ npm run deploy        # deploy to Cloudflare Workers
 - [x] **Real accounts**: Google or email, profile with photo, database, per-user data, account deletion.
 - [x] **Price engine**: page parsing, test catalog, history, scheduled checks and in-app alerts.
 - [x] **Deployment** at [nadir.aleixaj.com](https://nadir.aleixaj.com) with continuous deployment.
-- [ ] **Emails** with React Email + Resend: price alerts, email verification and password reset. Then Telegram.
+- [x] **Emails** with Resend: account confirmation, password reset and price alerts.
+- [ ] **Telegram alerts**.
 - [ ] **Production data**: store affiliate catalogs instead of the test catalog.
 - [ ] **End-to-end tests** with Playwright.
 

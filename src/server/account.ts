@@ -126,7 +126,7 @@ export async function getAccountData(user: { id: string; name: string; email: st
         txt: `Bajó a ${eur(e.priceCents / 100)} en ${p.store}`,
         date: dateFmt.format(e.createdAt),
         time: timeFmt.format(e.createdAt),
-        channels: e.channels || "En la app",
+        channels: e.channels === "email" ? "Email y en la app" : "En la app",
       };
     }),
     settings,
