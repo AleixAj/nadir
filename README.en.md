@@ -173,6 +173,10 @@ When a link is pasted, `fetchProduct()` downloads the page and `parseProductPage
 - All input validated with Zod and parameterized queries through Drizzle.
 - The automatic check route is protected with a secret (compared in constant time); keys are stored as Cloudflare secrets.
 - Login and sign-up attempts are rate limited per IP, stored in the database so the limit works across every Cloudflare Worker.
+- Invisible Cloudflare Turnstile captcha on sign-up, login and every form that sends emails, to stop bots.
+- Email spam protection: at most 3 account emails per address per hour, and no text typed by someone else inside those emails (names are stripped of links).
+- Per-user limits on expensive actions (reading store pages, searching, uploading photos).
+- Content Security Policy (CSP): the browser only loads scripts and iframes from the site itself and Cloudflare.
 - Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Passwords hashed by Better Auth, email confirmed before the first login, and protection so nobody can take over a Google account by registering its email first.
 - Profile photos cropped in the browser and checked on the server (real file type and maximum size).

@@ -173,6 +173,10 @@ Si se pega un enlace, `fetchProduct()` descarga la página y `parseProductPage()
 - Validación de todas las entradas con Zod y consultas parametrizadas con Drizzle.
 - Ruta de revisión automática protegida con clave secreta (comparada en tiempo constante); claves guardadas como *secrets* de Cloudflare.
 - Límite de intentos de login y registro por IP, guardado en la base de datos para que funcione en todos los Workers de Cloudflare.
+- Captcha invisible de Cloudflare Turnstile en registro, login y formularios que envían emails, para frenar bots.
+- Protección contra spam por email: máximo 3 emails de cuenta por dirección y hora, y ningún texto escrito por otra persona dentro de esos emails (los nombres se limpian de enlaces).
+- Límites por usuario en las acciones caras (leer páginas de tiendas, buscar, subir fotos).
+- Política de seguridad de contenidos (CSP): el navegador solo carga scripts e iframes de la propia web y de Cloudflare.
 - Cabeceras de seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Contraseñas cifradas por Better Auth, email confirmado antes del primer acceso y protección para que nadie pueda apropiarse de una cuenta de Google registrando antes su email.
 - Fotos de perfil recortadas en el navegador y comprobadas en el servidor (tipo real del archivo y tamaño máximo).

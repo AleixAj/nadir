@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { motion } from "motion/react";
 import { IconAlertCircle, IconEye, IconEyeOff, IconLoader2, IconMailCheck, IconPlayerPlay } from "@tabler/icons-react";
+import { captchaHeaders, Turnstile } from "@/components/turnstile";
 import { btn, Logo } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
@@ -39,6 +40,8 @@ function emailErrorMessage(code: string | undefined): string {
   if (code === "PASSWORD_TOO_SHORT") return "La contraseña tiene que tener al menos 8 caracteres.";
   if (code === "TOO_MANY_REQUESTS") return "Demasiados intentos. Espera un minuto y vuelve a probar.";
   if (code === "EMAIL_NOT_VERIFIED") return "Aún no has confirmado tu email.";
+  if (code === "MISSING_RESPONSE" || code === "VERIFICATION_FAILED")
+    return "No hemos podido comprobar que no eres un robot. Inténtalo de nuevo.";
   return "No se ha podido completar. Inténtalo de nuevo.";
 }
 
@@ -56,7 +59,7 @@ function initialError(params: URLSearchParams) {
 const INPUT =
   "h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--brand-soft)]";
 
-export function EntrarClient({ googleReady }: { googleReady: boolean }) {
+export function EntrarClient({ googleReady, turnstileKey }: { googleReady: boolean; turnstileKey: string | null }) {
   const params = useSearchParams();
   const registro = params.get("modo") === "registro";
   const router = useRouter();
@@ -71,6 +74,15 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
   const [sentTo, setSentTo] = useState("");
   const [resent, setResent] = useState(false);
   const [error, setError] = useState(initialError(params));
+  // Anti-bot token from Turnstile. Each token works once, so the widget is
+  // re-created (new key) after every request to get a fresh one.
+  const [token, setToken] = useState<string | null>(null);
+  const [widget, setWidget] = useState(0);
+  const needsToken = !!turnstileKey && !token;
+  const newToken = () => {
+    setToken(null);
+    setWidget((w) => w + 1);
+  };
 
   const signIn = async () => {
     setError("");
@@ -95,18 +107,25 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
     setSending(true);
     const address = email.trim();
     const result = registro
-      ? await authClient.signUp.email({
-          name: name.trim() || address.split("@")[0],
-          email: address,
-          password,
-          callbackURL: VERIFIED_URL,
-        })
-      : await authClient.signIn.email({
-          email: address,
-          password,
-          callbackURL: VERIFIED_URL,
-        });
+      ? await authClient.signUp.email(
+          {
+            name: name.trim() || address.split("@")[0],
+            email: address,
+            password,
+            callbackURL: VERIFIED_URL,
+          },
+          captchaHeaders(token),
+        )
+      : await authClient.signIn.email(
+          {
+            email: address,
+            password,
+            callbackURL: VERIFIED_URL,
+          },
+          captchaHeaders(token),
+        );
     setSending(false);
+    newToken();
 
     if (result.error) {
       // Not confirmed yet: the server has just sent a new link, so show the same screen as after signing up
@@ -126,10 +145,8 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
 
   const resend = async () => {
     setError("");
-    const { error } = await authClient.sendVerificationEmail({
-      email: sentTo,
-      callbackURL: VERIFIED_URL,
-    });
+    const { error } = await authClient.sendVerificationEmail({ email: sentTo, callbackURL: VERIFIED_URL }, captchaHeaders(token));
+    newToken();
     if (error) setError(emailErrorMessage(error.code));
     else setResent(true);
   };
@@ -179,7 +196,13 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                   {error}
                 </p>
               )}
-              <button type="button" onClick={resend} disabled={resent} className={btn("primary", "lg", "mt-1 h-11 w-full text-sm")}>
+              {turnstileKey && !resent && <Turnstile key={widget} siteKey={turnstileKey} onToken={setToken} />}
+              <button
+                type="button"
+                onClick={resend}
+                disabled={resent || needsToken}
+                className={btn("primary", "lg", "mt-1 h-11 w-full text-sm")}
+              >
                 {resent ? "Enlace reenviado" : "Reenviar el enlace"}
               </button>
               <button
@@ -261,7 +284,8 @@ export function EntrarClient({ googleReady }: { googleReady: boolean }) {
                     {showPassword ? <IconEyeOff size={17} aria-hidden /> : <IconEye size={17} aria-hidden />}
                   </button>
                 </div>
-                <button type="submit" disabled={busy} className={btn("primary", "lg", "h-11 w-full text-sm")}>
+                {turnstileKey && <Turnstile key={widget} siteKey={turnstileKey} onToken={setToken} />}
+                <button type="submit" disabled={busy || needsToken} className={btn("primary", "lg", "h-11 w-full text-sm")}>
                   {sending && <IconLoader2 size={18} className="animate-spin" aria-hidden />}
                   {registro ? "Crear cuenta" : "Entrar"}
                 </button>

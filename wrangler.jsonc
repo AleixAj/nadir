@@ -14,6 +14,8 @@
   // Runs every 10 minutes. Each run only checks the products that are due,
   // based on the frequency each user picked (1 h, 6 h or 24 h)
   "triggers": { "crons": ["*/10 * * * *"] },
+  // Keep the plain-text variables added in the Cloudflare dashboard (e.g. TURNSTILE_SITE_KEY) on every deploy
+  "keep_vars": true,
   "vars": {
     "BETTER_AUTH_URL": "https://nadir.aleixaj.com",
     // Sender of the emails (the domain must be verified in Resend)

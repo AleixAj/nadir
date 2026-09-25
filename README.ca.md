@@ -173,6 +173,10 @@ Si s'enganxa un enllaç, `fetchProduct()` descarrega la pàgina i `parseProductP
 - Validació de totes les entrades amb Zod i consultes parametritzades amb Drizzle.
 - Ruta de revisió automàtica protegida amb clau secreta (comparada en temps constant); claus desades com a *secrets* de Cloudflare.
 - Límit d'intents d'inici de sessió i registre per IP, desat a la base de dades perquè funcioni a tots els Workers de Cloudflare.
+- Captcha invisible de Cloudflare Turnstile al registre, a l'inici de sessió i als formularis que envien correus, per frenar bots.
+- Protecció contra l'spam per correu: com a màxim 3 correus de compte per adreça i hora, i cap text escrit per una altra persona dins d'aquests correus (els noms es netegen d'enllaços).
+- Límits per usuari a les accions cares (llegir pàgines de botigues, cercar, pujar fotos).
+- Política de seguretat de continguts (CSP): el navegador només carrega scripts i iframes de la mateixa web i de Cloudflare.
 - Capçaleres de seguretat (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
 - Contrasenyes xifrades per Better Auth, correu confirmat abans del primer accés i protecció perquè ningú es pugui apropiar d'un compte de Google registrant-ne abans el correu.
 - Fotos de perfil retallades al navegador i comprovades al servidor (tipus real del fitxer i mida màxima).

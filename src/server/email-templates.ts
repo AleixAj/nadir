@@ -75,31 +75,33 @@ const p = (t: string) => `<p style="margin:0 0 24px;font-size:15px;line-height:1
 const small = (t: string) => `<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:${C.text3}">${t}</p>`;
 const strong = (t: string) => `<strong style="color:${C.text}">${t}</strong>`;
 
-export function verifyEmailTemplate(name: string, url: string) {
+// No names in account emails: they can reach someone who never signed up,
+// so nothing typed by a stranger should appear in them
+export function verifyEmailTemplate(url: string) {
   return {
     subject: "Confirma tu email para entrar en Nadir",
     html: layout(
       "Confirma tu email para activar tu cuenta.",
-      h1(`Hola, ${esc(name)}`) +
+      h1("Confirma tu email") +
         p("Para terminar de crear tu cuenta en Nadir, confirma que este email es tuyo.") +
         button(url, "Confirmar mi email") +
         small("El enlace caduca en 1 hora. Si no has creado una cuenta en Nadir, ignora este email."),
     ),
-    text: `Hola, ${name}\n\nPara terminar de crear tu cuenta en Nadir, confirma tu email en este enlace (caduca en 1 hora):\n${url}\n\nSi no has creado una cuenta, ignora este email.`,
+    text: `Hola:\n\nPara terminar de crear tu cuenta en Nadir, confirma tu email en este enlace (caduca en 1 hora):\n${url}\n\nSi no has creado una cuenta, ignora este email.`,
   };
 }
 
-export function resetPasswordTemplate(name: string, url: string) {
+export function resetPasswordTemplate(url: string) {
   return {
     subject: "Cambia tu contraseña de Nadir",
     html: layout(
       "Enlace para elegir una contraseña nueva.",
-      h1(`Hola, ${esc(name)}`) +
+      h1("Cambia tu contraseña") +
         p("Has pedido cambiar la contraseña de tu cuenta de Nadir. Pulsa el botón para elegir una nueva.") +
         button(url, "Elegir una contraseña nueva") +
         small("El enlace caduca en 1 hora. Si no lo has pedido tú, ignora este email: tu contraseña no cambiará."),
     ),
-    text: `Hola, ${name}\n\nPara elegir una contraseña nueva para Nadir, entra en este enlace (caduca en 1 hora):\n${url}\n\nSi no lo has pedido tú, ignora este email.`,
+    text: `Hola:\n\nPara elegir una contraseña nueva para Nadir, entra en este enlace (caduca en 1 hora):\n${url}\n\nSi no lo has pedido tú, ignora este email.`,
   };
 }
 
@@ -125,7 +127,7 @@ export function priceAlertTemplate(a: { productName: string; store: string; pric
 
 // Someone tried to sign up with an email that already has an account.
 // We tell the owner how to get in, instead of saying anything on the sign-up page.
-export function accountExistsTemplate(name: string, hasGoogle: boolean) {
+export function accountExistsTemplate(hasGoogle: boolean) {
   const base = site();
   const how = hasGoogle
     ? "Tu cuenta usa Google: entra con el botón «Continuar con Google»."
@@ -136,11 +138,11 @@ export function accountExistsTemplate(name: string, hasGoogle: boolean) {
     subject: "Ya tienes una cuenta en Nadir",
     html: layout(
       "Alguien ha intentado crear una cuenta con tu email.",
-      h1(`Hola, ${esc(name)}`) +
+      h1("Ya tienes una cuenta") +
         p(`Alguien (seguramente tú) ha intentado crear una cuenta en Nadir con este email, pero ya tienes una. ${how}`) +
         button(url, label) +
         small("Si no has sido tú, no tienes que hacer nada: tu cuenta sigue igual."),
     ),
-    text: `Hola, ${name}\n\nAlguien ha intentado crear una cuenta en Nadir con este email, pero ya tienes una. ${how}\n${url}\n\nSi no has sido tú, no tienes que hacer nada.`,
+    text: `Hola:\n\nAlguien ha intentado crear una cuenta en Nadir con este email, pero ya tienes una. ${how}\n${url}\n\nSi no has sido tú, no tienes que hacer nada.`,
   };
 }

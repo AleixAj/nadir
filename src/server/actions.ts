@@ -10,11 +10,13 @@ import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userAvat
 import { LIST_LIMIT, PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
 import { getAuth, getSession } from "@/lib/auth";
 import { normalizeText } from "@/lib/catalog";
+import { cleanName } from "@/lib/names";
 import { simulatedHistory } from "./simulation";
 import { getAccountData } from "./account";
 import { checkProduct } from "./checks";
 import { createAlert } from "./alerts";
 import { fetchProduct } from "./fetch-product";
+import { allow, TOO_MANY } from "./limits";
 
 type SessionUser = { id: string; name: string; email: string; image?: string | null };
 
@@ -134,6 +136,7 @@ export async function previewProduct(url: string): Promise<
 > {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`fetch:${user.id}`, 20, 60))) return { ok: false, error: TOO_MANY };
   if (!z.string().url().max(2000).safeParse(url).success) return { ok: false, error: "No es una dirección web válida." };
   const res = await fetchProduct(url);
   if (!res.ok) return { ok: false, error: res.error };
@@ -161,6 +164,7 @@ const addSchema = z.object({
 export async function addProduct(input: z.input<typeof addSchema>): Promise<ActionResult> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`fetch:${user.id}`, 20, 60))) return { ok: false, error: TOO_MANY };
   const parsed = addSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
   const { url, target, listId } = parsed.data;
@@ -243,6 +247,7 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 export async function checkNow(id: string): Promise<ActionResult<AccountData> & { checkError?: string }> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`check:${user.id}`, 30, 60))) return { ok: false, error: TOO_MANY };
   if (!idSchema.safeParse(id).success) return { ok: false, error: "Producto no válido." };
   if (!(await ownProduct(user.id, id))) return { ok: false, error: "No encontramos este producto." };
   // Mark it as checked only if the last check was over a minute ago. Doing it in one
@@ -310,6 +315,7 @@ export interface SearchHit {
 export async function searchProducts(q: string): Promise<ActionResult<{ available: boolean; hits: SearchHit[] }>> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`search:${user.id}`, 60, 60))) return { ok: false, error: TOO_MANY };
   if (typeof q !== "string") return { ok: false, error: "Búsqueda no válida." };
   // Strip LIKE wildcards (% and _) so they don't change the search
   const text = normalizeText(q).replace(/[%_\\]/g, "").slice(0, 80);
@@ -354,6 +360,7 @@ const catalogAddSchema = z.object({
 export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): Promise<ActionResult> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`add:${user.id}`, 20, 60))) return { ok: false, error: TOO_MANY };
   const parsed = catalogAddSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
   const { catalogId, target, listId } = parsed.data;
@@ -415,7 +422,7 @@ export async function updateName(name: string): Promise<ActionResult> {
   if (!user) return NO_SESSION;
   const parsed = nameSchema.safeParse(name);
   if (!parsed.success) return { ok: false, error: "Escribe un nombre de 1 a 60 caracteres." };
-  return saveUser(user, { name: parsed.data });
+  return saveUser(user, { name: cleanName(parsed.data) });
 }
 
 // The browser sends the photo already cropped to 256x256, so it's small.
@@ -433,6 +440,7 @@ function looksLikeImage(bytes: Buffer, type: string) {
 export async function uploadAvatar(dataUrl: string): Promise<ActionResult> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`avatar:${user.id}`, 10, 600))) return { ok: false, error: TOO_MANY };
 
   // Expected format: "data:image/webp;base64,AAAA..."
   const match = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
@@ -481,6 +489,7 @@ async function listNameTaken(userId: string, name: string, exceptId?: string) {
 export async function createList(input: z.input<typeof listSchema>): Promise<ActionResult> {
   const user = await requireUser();
   if (!user) return NO_SESSION;
+  if (!(await allow(`list:${user.id}`, 20, 60))) return { ok: false, error: TOO_MANY };
   const parsed = listSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: LIST_INPUT_ERROR };
 

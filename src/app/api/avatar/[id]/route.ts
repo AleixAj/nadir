@@ -5,6 +5,8 @@ import { userAvatar } from "@/db/schema";
 // Serves the profile photo a user uploaded
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // User ids are short random strings: anything else is not worth a database query
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) return new Response("Not found", { status: 404 });
   const [row] = await db.select().from(userAvatar).where(eq(userAvatar.userId, id));
   if (!row) return new Response("Not found", { status: 404 });
 

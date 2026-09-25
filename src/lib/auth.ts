@@ -3,12 +3,22 @@ import { betterAuth } from "better-auth";
 import { eq } from "drizzle-orm";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { captcha } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { DEFAULT_LISTS } from "@/lib/demo-data";
+import { cleanName } from "@/lib/names";
 import { sendEmail } from "@/server/email";
+import { allow } from "@/server/limits";
 import { accountExistsTemplate, resetPasswordTemplate, verifyEmailTemplate } from "@/server/email-templates";
+
+// Max account emails (confirm, reset, "you already have an account") to one address per hour,
+// so nobody can flood someone else's inbox by signing up with their email again and again
+const EMAILS_PER_HOUR = 3;
+
+// Public key of the Turnstile widget (null when the captcha is off)
+export const turnstileSiteKey = () => (process.env.TURNSTILE_SECRET_KEY ? (process.env.TURNSTILE_SITE_KEY ?? null) : null);
 
 export const isGoogleConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -26,7 +36,9 @@ function createAuth() {
       requireEmailVerification: true,
       // "Forgot your password": emails a link to /entrar/nueva-contrasena
       sendResetPassword: async ({ user, url }) => {
-        await sendEmail({ to: user.email, ...resetPasswordTemplate(user.name, url) });
+        if (await allow(`email:${user.email}`, EMAILS_PER_HOUR, 3600)) {
+          await sendEmail({ to: user.email, ...resetPasswordTemplate(url) });
+        }
       },
       // After changing the password, log out every other device
       revokeSessionsOnPasswordReset: true,
@@ -36,12 +48,16 @@ function createAuth() {
       onExistingUserSignUp: async ({ user }) => {
         const logins = await db.select({ providerId: schema.account.providerId }).from(schema.account).where(eq(schema.account.userId, user.id));
         const hasGoogle = logins.some((l) => l.providerId === "google");
-        await sendEmail({ to: user.email, ...accountExistsTemplate(user.name, hasGoogle) });
+        if (await allow(`email:${user.email}`, EMAILS_PER_HOUR, 3600)) {
+          await sendEmail({ to: user.email, ...accountExistsTemplate(hasGoogle) });
+        }
       },
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }) => {
-        await sendEmail({ to: user.email, ...verifyEmailTemplate(user.name, url) });
+        if (await allow(`email:${user.email}`, EMAILS_PER_HOUR, 3600)) {
+          await sendEmail({ to: user.email, ...verifyEmailTemplate(url) });
+        }
       },
       sendOnSignUp: true,
       // Trying to log in without confirming sends a new link
@@ -59,7 +75,12 @@ function createAuth() {
     },
     databaseHooks: {
       user: {
+        // Clean the name before saving it (links and HTML characters out)
+        update: {
+          before: async (data) => (typeof data.name === "string" ? { data: { ...data, name: cleanName(data.name) } } : { data }),
+        },
         create: {
+          before: async (newUser) => ({ data: { ...newUser, name: cleanName(newUser.name) } }),
           // Every new account starts with the default lists
           after: async (newUser) => {
             await db.insert(schema.userList).values(
@@ -92,8 +113,21 @@ function createAuth() {
       // Behind Cloudflare the real visitor IP comes in this header
       ipAddress: { ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"] },
     },
-    // nextCookies lets Server Actions set session cookies
-    plugins: [nextCookies()],
+    // nextCookies lets Server Actions set session cookies.
+    // captcha: Cloudflare Turnstile checks that sign-up, login and email requests come
+    // from a person. Only on when its secret key is set (so local development still works).
+    plugins: [
+      nextCookies(),
+      ...(process.env.TURNSTILE_SECRET_KEY
+        ? [
+            captcha({
+              provider: "cloudflare-turnstile",
+              secretKey: process.env.TURNSTILE_SECRET_KEY,
+              endpoints: ["/sign-up/email", "/sign-in/email", "/request-password-reset", "/send-verification-email"],
+            }),
+          ]
+        : []),
+    ],
   });
 }
 
