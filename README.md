@@ -118,6 +118,13 @@ El resultado son **347 productos reales, todos con precio en 2 tiendas o más** 
   <sub>Buscar y añadir un producto por su nombre</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/entrar.webp" alt="Crear una cuenta con Google o con email (hay que confirmar el email antes de entrar)">
+</p>
+<p align="center">
+  <sub>Crear una cuenta con Google o con email (hay que confirmar el email antes de entrar)</sub>
+</p>
+
 ## Stack técnico
 
 | Capa | Elección | Motivo |

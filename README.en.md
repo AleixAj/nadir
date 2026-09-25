@@ -118,6 +118,13 @@ The result is **347 real products, all with prices from 2 or more stores** (almo
   <sub>Search and add a product by name</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/entrar.webp" alt="Create an account with Google or email (the email has to be confirmed before logging in)">
+</p>
+<p align="center">
+  <sub>Create an account with Google or email (the email has to be confirmed before logging in)</sub>
+</p>
+
 ## Tech stack
 
 | Layer | Choice | Why |

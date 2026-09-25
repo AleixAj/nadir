@@ -118,6 +118,13 @@ El resultat són **347 productes reals, tots amb preu en 2 botigues o més** (ga
   <sub>Cercar i afegir un producte pel seu nom</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/entrar.webp" alt="Crear un compte amb Google o amb correu (cal confirmar el correu abans d'entrar)">
+</p>
+<p align="center">
+  <sub>Crear un compte amb Google o amb correu (cal confirmar el correu abans d'entrar)</sub>
+</p>
+
 ## Stack tècnic
 
 | Capa | Elecció | Motiu |
