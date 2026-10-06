@@ -36,6 +36,6 @@ export function AuthFrame({ title, subtitle, children }: { title: string; subtit
   );
 }
 
-// Same input style as the sign-in form
+// Input style shared by the sign-in form and these pages
 export const AUTH_INPUT =
   "h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--brand-soft)]";

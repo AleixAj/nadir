@@ -52,7 +52,8 @@ export function dailySeries(points: PointRow[], today: Date): number[] {
   return out.slice(-365);
 }
 
-function alertStatus(cur: number, target: number | null, alertOn: boolean): AlertStatus {
+// Alert state from the current price and the target (no target means no alert)
+export function alertStatus(cur: number, target: number | null, alertOn: boolean): AlertStatus {
   if (target == null) return "none";
   if (cur <= target) return "alcanzado";
   return alertOn ? "activa" : "pausada";

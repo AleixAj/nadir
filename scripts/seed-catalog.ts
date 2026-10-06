@@ -484,9 +484,9 @@ for (const item of list) {
   }
 }
 
-// Remove products that no longer pass the filters (products someone is tracking are kept)
+// Remove products that no longer pass the filters.
+// Products someone follows are kept, so their store comparison doesn't disappear.
 const keep = list.filter((i) => images.get(i.id)).map((i) => i.id);
-// Products someone follows are kept, so their store comparison doesn't disappear
 const removed = await sql`
   delete from catalog_product
   where not (id = any(${keep}))

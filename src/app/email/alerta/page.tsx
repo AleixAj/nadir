@@ -4,8 +4,8 @@ import { LogoMark } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Email de alerta" };
 
-// Preview of the email sent when a price drops below the target.
-// Later this will be built with React Email and sent with Resend.
+// Sample of a price alert email, linked from the landing so visitors can see one.
+// It's a static page with demo data: the emails really sent are in src/server/email-templates.ts.
 export default function EmailAlertaPage() {
   // Shared class for the "other stores" table cells
   const td = "border-t border-border py-2";

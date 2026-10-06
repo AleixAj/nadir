@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildChart, niceStep } from "../chart";
-import { DEMO_PRODUCTS, detectFromUrl, HISTORY_DAYS, makeSeries, rankOffers, searchCatalog } from "../demo-data";
+import { DEMO_PRODUCTS } from "../demo-data";
+import { detectFromUrl, searchDemo } from "../demo-catalog";
+import { rankOffers } from "../offers";
+import { HISTORY_DAYS, makeSeries } from "../series";
 import { eur, eurS, parsePrice, pctS } from "../format";
 import { alertBadge, sortProducts, targetProgress } from "../insights";
 
@@ -100,8 +103,8 @@ describe("add product", () => {
     expect(detectFromUrl("https://tiendaxyz.com/oferta/8812")).toBeNull();
   });
   it("searches by name from 2 letters", () => {
-    expect(searchCatalog("s")).toEqual([]);
-    expect(searchCatalog("sony").map((x) => x.slug)).toContain("sony-wf-1000xm5");
+    expect(searchDemo("s", [])).toEqual([]);
+    expect(searchDemo("sony", []).map((x) => x.catalog?.slug)).toContain("sony-wf-1000xm5");
   });
 });
 

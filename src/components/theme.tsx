@@ -1,5 +1,6 @@
 "use client";
 
+// Light and dark theme: saved in localStorage and applied as data-theme on <html>
 import { useCallback, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark";

@@ -1,7 +1,9 @@
 "use client";
 
+// "Añadir producto" dialog: search by name or paste a link, check the preview and add it.
+// The demo uses a small local catalog; real accounts ask the server.
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   IconArrowLeft,
@@ -14,20 +16,13 @@ import {
   IconSearch,
   IconX,
 } from "@tabler/icons-react";
-import {
-  CATALOG,
-  detectFromUrl,
-  EXAMPLE_URL,
-  productFromCatalog,
-  searchDemo,
-  SUPPORTED_STORES,
-  type CatalogItem,
-  type ProductIcon,
-} from "@/lib/demo-data";
+import { CATALOG, detectFromUrl, EXAMPLE_URL, productFromCatalog, searchDemo, type CatalogItem } from "@/lib/demo-catalog";
+import { SUPPORTED_STORES, type ProductIcon } from "@/lib/demo-data";
+import { withoutAccents } from "@/lib/catalog";
 import { eur, parsePrice } from "@/lib/format";
 import { SelectMenu } from "@/components/select-menu";
 import { useDialogFocus, useIsMobile } from "@/lib/hooks";
-import { useDemo, useIsAccount } from "@/lib/store";
+import { listOptions, useDemo, useIsAccount } from "@/lib/store";
 import { previewProduct, searchProducts } from "@/server/actions";
 import { Button, cx, ProductThumb, Skeleton } from "@/components/ui";
 
@@ -104,7 +99,6 @@ interface Hit {
   list?: string;
   followedId?: string;
   catalog?: CatalogItem;
-  url?: string;
   // Real accounts: id in the test catalog and how many stores sell it
   catalogId?: string;
   stores?: number;
@@ -162,14 +156,11 @@ function previewNote(p: Preview) {
   return "Guardaremos este precio y lo revisaremos automáticamente.";
 }
 
-// Lowercase and without accents, so "telefono" matches "Teléfono"
-const normalize = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-
 // Highlights the part of the name that matches the search
 function Highlight({ text, q }: { text: string; q: string }) {
   const t = q.trim();
   if (t.length < 2) return <>{text}</>;
-  const i = normalize(text).indexOf(normalize(t));
+  const i = withoutAccents(text).indexOf(withoutAccents(t));
   if (i < 0) return <>{text}</>;
   return (
     <>
@@ -290,9 +281,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
     }
     if (h.catalogId) {
       toPreview({ name: h.name, image: h.image, icon: h.icon, store: h.store, price: h.price, catalogId: h.catalogId, stores: h.stores }, h.list);
-      return;
     }
-    if (h.url) toPreview({ name: h.name, image: h.image, icon: h.icon, store: h.store, price: h.price, url: h.url });
   };
 
   const detect = async (e?: React.FormEvent) => {
@@ -616,7 +605,7 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
 
             {/* Preview */}
             {step === "preview" && (
-              <Fragment>
+              <>
                 <div className="flex flex-col overflow-hidden rounded-[10px] border border-brand-soft-border/70 shadow-[0_12px_30px_-18px_var(--glow)]">
                   <div className="flex gap-3.5 p-3.5">
                     <ProductThumb icon={found.icon} image={found.image ?? undefined} size={80} radius={12} />
@@ -654,15 +643,12 @@ function AddProductBody({ onClose }: { onClose: () => void }) {
                       label="Lista"
                       value={list}
                       onChange={setList}
-                      options={[
-                        ...lists.map((l) => ({ value: l.id, label: l.name, color: l.color })),
-                        { value: "", label: "Sin lista", color: "var(--text-3)" },
-                      ]}
+                      options={listOptions(lists)}
                       className="h-10 w-full rounded-lg border border-border-strong bg-surface px-2.5 text-[13px] font-normal text-text transition-colors hover:border-brand-soft-border"
                     />
                   </div>
                 </div>
-              </Fragment>
+              </>
             )}
           </motion.div>
         </AnimatePresence>

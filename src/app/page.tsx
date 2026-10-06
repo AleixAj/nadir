@@ -1,5 +1,6 @@
 "use client";
 
+// Landing page: hero, live preview of the app inside an iframe, features and footer
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion, MotionConfig, useReducedMotion, type Variants } from "motion/react";

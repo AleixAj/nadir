@@ -1,14 +1,11 @@
 // Helpers for the sample catalog. No dependencies: the seed script
 // (scripts/seed-catalog.ts) also imports this file and runs it directly with Node.
 
+/** Lowercase and without accents, so "Teléfono" matches "telefono". */
+export const withoutAccents = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
 /** Lowercase, no accents and single spaces, for searching and comparing. */
-export const normalizeText = (t: string) =>
-  t
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+export const normalizeText = (t: string) => withoutAccents(t).replace(/\s+/g, " ").trim();
 
 /**
  * Stores allowed in the catalog: big chains and official brand stores.

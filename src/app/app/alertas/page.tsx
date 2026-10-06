@@ -1,12 +1,13 @@
 "use client";
 
+// Alerts page: active alerts and how close they are, plus the history of sent alerts
 import Link from "next/link";
 import { useState } from "react";
 import { IconArrowDownRight, IconBell, IconBrandTelegram, IconCheck, IconMail } from "@tabler/icons-react";
 import { Card, cx, enter, ProductThumb, ProgressBar, Segmented, Switch } from "@/components/ui";
 import { SENT_ALERTS } from "@/lib/demo-data";
-import { ago, eur, eurS, fd, pct1 } from "@/lib/format";
-import { distanceToTarget, leftToTarget, targetProgress } from "@/lib/insights";
+import { ago, eur, eurS, fd } from "@/lib/format";
+import { distanceToTarget, leftToTargetLabel, targetProgress } from "@/lib/insights";
 import { useDemo, useIsAccount, useProducts } from "@/lib/store";
 
 type Tab = "activas" | "historial";
@@ -68,7 +69,6 @@ export default function AlertasPage() {
             </div>
             {rows.map((p, i) => {
               const on = !!alerts[p.id];
-              const left = leftToTarget(p);
               return (
                 <div
                   key={p.id}
@@ -82,9 +82,7 @@ export default function AlertasPage() {
                   <span className="text-right text-[13px] font-semibold text-brand-text">{eurS(p.target!)}</span>
                   <span className="text-right text-[13px]">{eur(p.cur)}</span>
                   <span className="flex flex-col gap-[5px]">
-                    <span className="text-xs text-text-2">
-                      Faltan {eurS(left)} · {pct1((left / p.cur) * 100)} %
-                    </span>
+                    <span className="text-xs text-text-2">{leftToTargetLabel(p)}</span>
                     <ProgressBar value={targetProgress(p)} delay={0.15 + i * 0.05} />
                   </span>
                   <span className="flex gap-2 text-text-2">
@@ -104,7 +102,6 @@ export default function AlertasPage() {
         <Card key="activas-mobile" {...enter(1, "overflow-hidden desk:hidden")}>
           {rows.map((p, i) => {
             const on = !!alerts[p.id];
-            const left = leftToTarget(p);
             return (
               <div
                 key={p.id}
@@ -125,9 +122,7 @@ export default function AlertasPage() {
                 </div>
                 <ProgressBar value={targetProgress(p)} delay={0.15 + i * 0.05} />
                 <div className="flex items-center justify-between gap-3 text-xs text-text-2">
-                  <span>
-                    Faltan {eurS(left)} · {pct1((left / p.cur) * 100)} %
-                  </span>
+                  <span>{leftToTargetLabel(p)}</span>
                   <span className="flex gap-2">
                     <IconMail size={16} aria-label="Email" />
                     <IconBrandTelegram size={16} aria-label="Telegram" />

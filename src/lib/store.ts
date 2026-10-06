@@ -7,8 +7,11 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import * as api from "@/server/actions";
+import * as listApi from "@/server/list-actions";
+import * as profileApi from "@/server/profile-actions";
 import type { AccountAlert, AccountData, AccountUser, ActionResult, Freq } from "./account-types";
-import { DEFAULT_LISTS, DEMO_PRODUCTS, type AlertStatus, type Product, type ProductList } from "./demo-data";
+import { DEFAULT_LISTS, DEMO_PRODUCTS, type Product, type ProductList } from "./demo-data";
+import { alertStatus } from "./history";
 import type { SortKey } from "./insights";
 
 export type { Freq, SortKey };
@@ -29,14 +32,14 @@ function initialAlerts(): Record<string, boolean> {
   return alerts;
 }
 
-function alertStatus(price: number, target: number, on: boolean): AlertStatus {
-  if (price <= target) return "alcanzado";
-  return on ? "activa" : "pausada";
-}
-
 // Name of a list by its id ("Sin lista" if there is none)
 export function listName(lists: ProductList[], id: string | null) {
   return lists.find((l) => l.id === id)?.name ?? "Sin lista";
+}
+
+// Options for a list picker: every list, then "Sin lista" (value "")
+export function listOptions(lists: ProductList[]) {
+  return [...lists.map((l) => ({ value: l.id, label: l.name, color: l.color })), { value: "", label: "Sin lista", color: "var(--text-3)" }];
 }
 
 function addedMessage(lists: ProductList[], listId: string | null) {
@@ -279,9 +282,9 @@ export const useDemo = create<DemoState>()(
           set({ profile });
           get().showToast("Cambios guardados");
         },
-        updateName: (name) => apply(api.updateName(name), "Nombre actualizado"),
-        uploadAvatar: (dataUrl) => apply(api.uploadAvatar(dataUrl), "Foto actualizada"),
-        removeAvatar: () => apply(api.removeAvatar(), "Foto eliminada"),
+        updateName: (name) => apply(profileApi.updateName(name), "Nombre actualizado"),
+        uploadAvatar: (dataUrl) => apply(profileApi.uploadAvatar(dataUrl), "Foto actualizada"),
+        removeAvatar: () => apply(profileApi.removeAvatar(), "Foto eliminada"),
         resetDemo: () => {
           set({ ...PERSISTED, alerts: initialAlerts(), filter: "Todas", search: "", loadState: "normal" });
           get().showToast("Demo restablecida");
@@ -295,7 +298,7 @@ export const useDemo = create<DemoState>()(
             get().showToast(error, "error");
             return false;
           }
-          if (isAccount()) return apply(api.createList(l), "Lista creada");
+          if (isAccount()) return apply(listApi.createList(l), "Lista creada");
           // Demo: a random id is enough, it only lives in this browser
           set((s) => ({ lists: [...s.lists, { id: crypto.randomUUID(), name: l.name.trim(), color: l.color }] }));
           get().showToast("Lista creada");
@@ -307,7 +310,7 @@ export const useDemo = create<DemoState>()(
             get().showToast(error, "error");
             return false;
           }
-          if (isAccount()) return apply(api.updateList({ id, ...l }), "Lista guardada");
+          if (isAccount()) return apply(listApi.updateList({ id, ...l }), "Lista guardada");
           set((s) => ({ lists: s.lists.map((x) => (x.id === id ? { ...x, name: l.name.trim(), color: l.color } : x)) }));
           get().showToast("Lista guardada");
           return true;
@@ -315,7 +318,7 @@ export const useDemo = create<DemoState>()(
         deleteList: async (id) => {
           // If we were looking at that list, go back to all products
           if (get().filter === id) set({ filter: "Todas" });
-          if (isAccount()) return apply(api.deleteList(id), "Lista eliminada");
+          if (isAccount()) return apply(listApi.deleteList(id), "Lista eliminada");
           set((s) => ({
             lists: s.lists.filter((x) => x.id !== id),
             products: s.products.map((p) => (p.list === id ? { ...p, list: null } : p)),
@@ -325,7 +328,7 @@ export const useDemo = create<DemoState>()(
         },
         moveProduct: async (id, listId) => {
           const message = listId ? "Movido a " + listName(get().lists, listId) : "Quitado de la lista";
-          if (isAccount()) return apply(api.moveProduct({ id, listId }), message);
+          if (isAccount()) return apply(listApi.moveProduct({ id, listId }), message);
           set((s) => ({ products: s.products.map((p) => (p.id === id ? { ...p, list: listId } : p)) }));
           get().showToast(message);
           return true;

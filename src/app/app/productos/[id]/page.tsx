@@ -1,5 +1,6 @@
 "use client";
 
+// Product page: current price, history chart, store comparison and the price alert form
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,10 +23,11 @@ import { SelectMenu } from "@/components/select-menu";
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, ChangeBadge, CountUp, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
 import { RANGES, type RangeKey, type Chart } from "@/lib/chart";
-import { minDate, rankOffers, shopsFor, type Product, type RankedOffer } from "@/lib/demo-data";
+import { minDate, type Product } from "@/lib/demo-data";
+import { rankOffers, shopsFor, type RankedOffer } from "@/lib/offers";
 import { eur, eurS, parsePrice, pct1, pctS, r2, sinceLabel } from "@/lib/format";
 import { useIsMobile } from "@/lib/hooks";
-import { useDemo, useIsAccount } from "@/lib/store";
+import { listOptions, useDemo, useIsAccount } from "@/lib/store";
 
 export default function FichaPage() {
   const { id } = useParams<{ id: string }>();
@@ -643,13 +645,12 @@ function ListPicker({ p }: { p: Product }) {
   const lists = useDemo((s) => s.lists);
   const moveProduct = useDemo((s) => s.moveProduct);
   // "" stands for "no list"
-  const options = [...lists.map((l) => ({ value: l.id, label: l.name, color: l.color })), { value: "", label: "Sin lista", color: "var(--text-3)" }];
   return (
     <SelectMenu
       label="Cambiar de lista"
       value={p.list ?? ""}
       onChange={(v) => moveProduct(p.id, v || null)}
-      options={options}
+      options={listOptions(lists)}
       className="h-[22px] rounded-full bg-surface-3 px-2 text-xs font-medium text-text transition-colors hover:bg-border"
     />
   );

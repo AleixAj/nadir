@@ -1,4 +1,6 @@
 import "server-only";
+
+// Login with Better Auth: Google, or email and password with a confirmation email
 import { betterAuth } from "better-auth";
 import { eq } from "drizzle-orm";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";

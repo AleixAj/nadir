@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { buildChart, RANGES, type RangeKey } from "@/lib/chart";
+import { buildChart, RANGES, type Chart, type RangeKey } from "@/lib/chart";
 import { ago, eur, eurS, fdl, r2 } from "@/lib/format";
 import type { Product } from "@/lib/demo-data";
 
@@ -20,8 +20,8 @@ function targetDiffText(diff: number) {
   return eur(-diff) + " por debajo del objetivo";
 }
 
-// Price history chart: stepped line, target line, lowest price point and a hover tooltip
-
+// Price history chart: stepped line, target line, lowest price point and a hover tooltip.
+// The maths is in lib/chart.ts; this component only draws it.
 export function PriceChart({
   product,
   range,
@@ -33,7 +33,7 @@ export function PriceChart({
   range: RangeKey;
   target: number | null;
   compact: boolean;
-  onStats?: (s: ReturnType<typeof buildChart>["stats"]) => void;
+  onStats?: (s: Chart["stats"]) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(720);

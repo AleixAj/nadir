@@ -1,12 +1,13 @@
 "use client";
 
+// Dashboard (Panel): summary cards, latest price drops and products close to their target
 import Link from "next/link";
 import { IconAlertTriangle, IconArrowDownRight, IconArrowRight, IconBell, IconPackage, IconPigMoney, IconPlus } from "@tabler/icons-react";
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, CountUp, EmptyMark, enter, ProductThumb, ProgressBar, Skeleton } from "@/components/ui";
 import { DROPS, FAILING_STORE, SUPPORTED_STORES } from "@/lib/demo-data";
-import { eur, eurS, pct1, pctS, sinceLabel } from "@/lib/format";
-import { distanceToTarget, leftToTarget, targetProgress } from "@/lib/insights";
+import { eur, eurS, pctS, sinceLabel } from "@/lib/format";
+import { distanceToTarget, leftToTarget, leftToTargetLabel, targetProgress } from "@/lib/insights";
 import { useDemo, useIsAccount, useProducts } from "@/lib/store";
 
 export default function PanelPage() {
@@ -180,9 +181,7 @@ export default function PanelPage() {
                     <span className="text-[13px] font-semibold text-brand-text">{eurS(p.target!)}</span>
                   </span>
                   <ProgressBar value={targetProgress(p)} delay={0.3 + i * 0.06} />
-                  <span className="text-xs text-text-3">
-                    Faltan {eurS(leftToTarget(p))} · {pct1((leftToTarget(p) / p.cur) * 100)} %
-                  </span>
+                  <span className="text-xs text-text-3">{leftToTargetLabel(p)}</span>
                 </Link>
               ))}
               {near.length === 0 && <p className="m-0 p-4 text-[13px] text-text-2">No tienes alertas activas.</p>}

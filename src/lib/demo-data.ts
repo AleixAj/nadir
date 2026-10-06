@@ -1,6 +1,8 @@
 // Data for the demo account. Stores and products are real, but prices are
 // approximate (not fetched live) and the price history is simulated.
-import { ago, fd, r2 } from "./format";
+// Series, store offers and the demo search live in series.ts, offers.ts and demo-catalog.ts.
+import { ago, fd } from "./format";
+import { makeSeries, type Shape } from "./series";
 
 // A list the user groups products in (name and colour are up to them)
 export interface ProductList {
@@ -18,13 +20,6 @@ export const DEFAULT_LISTS: ProductList[] = [
 // Colours offered when creating a list (any other can be picked too)
 export const LIST_COLORS = ["#ea580c", "#dc2626", "#db2777", "#9333ea", "#2563eb", "#0891b2", "#0d9488", "#16a34a", "#ca8a04", "#64748b"];
 export type AlertStatus = "activa" | "alcanzado" | "pausada" | "none";
-
-// Shape of the simulated history:
-// - launch: starts expensive and drops over time (phones, new releases)
-// - volatile: price changes very often (typical of marketplaces)
-// - stable: barely moves
-// - random: changes every now and then
-export type Shape = "random" | "launch" | "volatile" | "stable";
 
 export type ProductIcon =
   | "headphones"
@@ -80,8 +75,6 @@ export interface Product {
   offers?: { store: string; price: number; url: string; shipping: string | null; shipCents: number | null }[];
 }
 
-export const HISTORY_DAYS = 365;
-
 type Raw = Omit<Product, "series" | "ch">;
 
 const RAW: Raw[] = [
@@ -99,112 +92,14 @@ const RAW: Raw[] = [
   { id: "dyson-v15", shape: "stable", name: "Dyson V15 Detect Absolute", list: "hogar", icon: "wind", cur: 549, prev7: 549, min: 499, minAgo: 110, store: "El Corte Inglés", target: null, alert: "none", stores: 3, since: "8 mar", checked: 4 },
 ];
 
-// How many days ago (from 24 sep 2026) the big sales happened
-const BLACK_FRIDAY = 300; // 28 nov 2025
-const PRIME_DAY = 75; // 11 jul 2026
-
-// How often the price changes each day, per shape (launch has its own logic)
-const CHANGE_CHANCE = { volatile: 0.24, stable: 0.02, random: 0.09 };
-
-/**
- * Builds a believable daily price history. Same seed gives the same series.
- * The all-time low lands on the right day and the last 7 days go from `prev7` to `cur`.
- */
-export function makeSeries(
-  p: Pick<Raw, "cur" | "prev7" | "min" | "minAgo" | "shape">,
-  seed: number,
-  n = HISTORY_DAYS,
-): number[] {
-  // Small seeded random generator (0 to 1), so the demo looks the same every time
-  let s = seed * 7919 + 13;
-  const rnd = () => {
-    s = (s * 16807) % 2147483647;
-    return s / 2147483647;
-  };
-  const shape = p.shape ?? "random";
-  const hi = Math.max(p.cur, p.prev7) * (shape === "launch" ? 1.22 : 1.12);
-  const lo = p.min;
-  const floor = lo + (hi - lo) * 0.3;
-  // Store-like prices: whole euros or ending in ,99
-  const q = (v: number) => Math.round(v) - (rnd() < 0.5 ? 0.01 : 0);
-
-  const out: number[] = [];
-  if (shape === "launch") {
-    // Steps down every ~5 weeks, from launch price to the current one
-    const end = Math.max(p.cur, p.prev7);
-    let v = q(hi);
-    for (let i = 0; i < n; i++) {
-      if (i % 35 === 0 && i > 0) {
-        const trend = hi - (hi - end) * Math.pow(i / n, 0.8);
-        const noise = (rnd() - 0.5) * (hi - end) * 0.08;
-        v = q(trend + noise);
-      }
-      out.push(v);
-    }
-  } else {
-    const chance = CHANGE_CHANCE[shape];
-    // Stable products stay in the upper part of the range
-    const top = shape === "stable" ? floor + (hi - floor) * 0.55 : floor;
-    let v = q(top + rnd() * (hi - top));
-    for (let i = 0; i < n; i++) {
-      if (rnd() < chance) v = q(top + rnd() * (hi - top));
-      out.push(v);
-    }
-  }
-
-  // Black Friday and Prime Day discounts (not for stable products)
-  if (shape !== "stable") {
-    const sales = [
-      { daysAgo: BLACK_FRIDAY, length: 5, cut: 0.1 },
-      { daysAgo: PRIME_DAY, length: 2, cut: 0.08 },
-    ];
-    for (const sale of sales) {
-      const start = n - 1 - sale.daysAgo;
-      for (let k = start; k < start + sale.length; k++) {
-        if (k >= 0 && k < n - 8) out[k] = Math.max(q(lo + 1), q(out[k] * (1 - sale.cut)));
-      }
-    }
-  }
-
-  // Put the all-time low on its day, with lower prices around it
-  const lowIndex = n - 1 - p.minAgo;
-  const nearLow = q(lo + (hi - lo) * 0.12);
-  for (let k = lowIndex - 3; k <= lowIndex + 3; k++) {
-    if (k >= 0 && k < n - 8 && out[k] > nearLow) out[k] = nearLow;
-  }
-  out[lowIndex] = lo;
-  if (lowIndex + 1 < n - 8) out[lowIndex + 1] = lo;
-
-  // Nothing can go below the all-time low
-  for (let k = 0; k < n; k++) {
-    if (out[k] < lo) out[k] = lo;
-  }
-
-  // Last week: from prev7 to cur
-  out[n - 8] = p.prev7;
-  out[n - 7] = p.prev7;
-  for (let k = n - 6; k < n - 2; k++) {
-    if (p.cur === p.prev7) {
-      // Same price as a week ago: add small random bumps
-      out[k] = rnd() < 0.5 ? p.cur : q(p.cur * (1 + rnd() * 0.04));
-    } else {
-      const t = (k - (n - 8)) / 7;
-      out[k] = Math.max(Math.min(p.cur, p.prev7), q(p.prev7 + (p.cur - p.prev7) * t));
-    }
-  }
-  out[n - 2] = p.cur;
-  out[n - 1] = p.cur;
-  return out;
-}
-
 export const change7d = (cur: number, prev7: number) => ((cur - prev7) / prev7) * 100;
 
 // Demo product photo from its id (images from Amazon.es)
-const photo = (id: string) => `/products/${id}.webp`;
+export const demoPhoto = (id: string) => `/products/${id}.webp`;
 
 export const DEMO_PRODUCTS: Product[] = RAW.map((p, i) => ({
   ...p,
-  image: photo(p.id),
+  image: demoPhoto(p.id),
   series: makeSeries(p, i + 1),
   ch: change7d(p.cur, p.prev7),
 }));
@@ -261,197 +156,5 @@ export const FAILING_STORE = "Worten";
 
 export const SUPPORTED_STORES = ["Amazon", "PcComponentes", "MediaMarkt", "El Corte Inglés", "Fnac"];
 
-// Stores that offer in-store pickup
-const PICKUP = new Set(["MediaMarkt", "El Corte Inglés", "Fnac"]);
-
-export interface ShopOffer {
-  name: string;
-  url?: string;
-  price?: number;
-  ship?: number;
-  shipL?: string;
-  eta?: string;
-  pickup?: boolean;
-  error?: boolean;
-}
-
-const FEATURED_SHOPS: ShopOffer[] = [
-  { name: "Amazon", price: 379, ship: 0, shipL: "Envío gratis", eta: "Mañana" },
-  { name: "PcComponentes", price: 374.9, ship: 5.99, shipL: "Envío 5,99 €", eta: "24–48 h" },
-  { name: "MediaMarkt", price: 385, ship: 0, shipL: "Recogida en tienda gratis", eta: "Hoy, en tienda", pickup: true },
-  { name: "El Corte Inglés", price: 399, ship: 0, shipL: "Envío gratis", eta: "2–3 días" },
-  { name: "Worten", error: true },
-];
-
 /** Featured product, used in the landing preview and the sample email. */
 export const FEATURED_ID = "sony-wh-1000xm6";
-
-// Made-up shipping costs and delivery times, cycled through for the other stores
-const SHIP_COSTS = [4.99, 0, 3.95, 0];
-const ETAS = ["3–5 días", "24–48 h", "2–3 días", "24 h"];
-
-function shipLabel(ship: number, pickup: boolean) {
-  if (pickup) return "Recogida en tienda gratis";
-  if (ship) return "Envío " + String(ship).replace(".", ",") + " €";
-  return "Envío gratis";
-}
-
-/** Offers from each store for a demo product. */
-export function shopsFor(p: Product): ShopOffer[] {
-  if (p.id === FEATURED_ID) return FEATURED_SHOPS;
-  const others = SUPPORTED_STORES.filter((n) => n !== p.store).slice(0, p.stores - 1);
-  const rows: ShopOffer[] = [{ name: p.store, price: p.cur, ship: 0, shipL: "Envío gratis", eta: "24–48 h" }];
-  others.forEach((name, i) => {
-    const pickup = PICKUP.has(name) && i === 1;
-    const ship = pickup ? 0 : SHIP_COSTS[i % 4];
-    rows.push({
-      name,
-      // Each extra store is a bit more expensive than the best one
-      price: Math.round(p.cur * (1.012 + i * 0.03)) - 0.01,
-      ship,
-      shipL: shipLabel(ship, pickup),
-      eta: pickup ? "Hoy, en tienda" : ETAS[i % 4],
-      pickup,
-    });
-  });
-  return rows;
-}
-
-export interface RankedOffer extends ShopOffer {
-  total?: number;
-  best: boolean;
-}
-
-/** Sorts by final price (price + shipping). Stores with errors go last. */
-export function rankOffers(offers: ShopOffer[]): RankedOffer[] {
-  const ok = offers
-    .filter((s) => !s.error)
-    .map((s) => ({ ...s, total: r2((s.price ?? 0) + (s.ship ?? 0)) }))
-    .sort((a, b) => a.total - b.total);
-  const failed = offers.filter((s) => s.error);
-  // The cheapest one gets the "best" tag
-  const ranked = ok.map((s, i) => ({ ...s, best: i === 0 }));
-  return [...ranked, ...failed.map((s) => ({ ...s, best: false }))];
-}
-
-/** Products the "add product" search can "find" in the demo. */
-export interface CatalogItem {
-  slug: string;
-  name: string;
-  icon: ProductIcon;
-  image?: string;
-  store: string;
-  price: number;
-  // Suggested list name, e.g. "Hogar"
-  list: string;
-  others: string;
-}
-
-const CATALOG_RAW: Omit<CatalogItem, "image">[] = [
-  { slug: "odyssey-g5", name: 'Samsung Odyssey G5 27"', icon: "desktop", store: "PcComponentes", price: 229, list: "Tecnología", others: "Amazon (234,90 €) y MediaMarkt (239,00 €)" },
-  { slug: "sony-wf-1000xm5", name: "Sony WF-1000XM5", icon: "headphones", store: "Amazon", price: 229, list: "Tecnología", others: "MediaMarkt (239,00 €) y Fnac (244,99 €)" },
-  { slug: "redmi-note-14-pro", name: "Xiaomi Redmi Note 14 Pro 256 GB", icon: "phone", store: "MediaMarkt", price: 329, list: "Tecnología", others: "Amazon (334,00 €) y PcComponentes (339,00 €)" },
-  { slug: "ipad-air-m3", name: 'Apple iPad Air 11" M3', icon: "tablet", store: "El Corte Inglés", price: 699, list: "Tecnología", others: "Amazon (704,00 €) y Fnac (709,00 €)" },
-  { slug: "kindle-paperwhite", name: "Kindle Paperwhite", icon: "tablet", store: "Amazon", price: 169.99, list: "Tecnología", others: "MediaMarkt (174,99 €)" },
-  { slug: "jbl-flip-6", name: "JBL Flip 6", icon: "speaker", store: "Amazon", price: 99, list: "Tecnología", others: "PcComponentes (104,90 €) y Fnac (109,99 €)" },
-  { slug: "philips-airfryer-xxl", name: "Philips Airfryer 5000 XXL", icon: "kitchen", store: "El Corte Inglés", price: 199, list: "Hogar", others: "Amazon (204,99 €) y MediaMarkt (209,00 €)" },
-];
-
-export const CATALOG: CatalogItem[] = CATALOG_RAW.map((c) => ({ ...c, image: photo(c.slug) }));
-
-export const EXAMPLE_URL = "https://www.pccomponentes.com/samsung-odyssey-g5-27";
-
-const URL_RE = /^(https?:\/\/)?(www\.)?(amazon\.es|pccomponentes\.com|mediamarkt\.es|elcorteingles\.es|fnac\.es)\/.+/i;
-
-/** Returns the catalog product for a URL, or null if the URL isn't from a supported store. */
-export function detectFromUrl(url: string): CatalogItem | null {
-  const u = url.trim();
-  if (!URL_RE.test(u)) return null;
-  // Match on the first two words of the slug, e.g. "odyssey-g5"
-  const hit = CATALOG.find((c) => u.toLowerCase().includes(c.slug.split("-").slice(0, 2).join("-")));
-  // Unknown product from a valid store: fall back to the first catalog item
-  return hit ?? CATALOG[0];
-}
-
-export function searchCatalog(q: string): CatalogItem[] {
-  const t = q.trim().toLowerCase();
-  if (t.length < 2) return [];
-  return CATALOG.filter((x) => x.name.toLowerCase().includes(t));
-}
-
-/** Turns a catalog item into a followed product with its own history. */
-export function productFromCatalog(c: CatalogItem, target: number | null, seed: number): Product {
-  const base = { cur: c.price, prev7: c.price, min: r2(c.price * 0.92), minAgo: 40 + (seed % 90) };
-  return {
-    id: c.slug,
-    name: c.name,
-    list: null,
-    icon: c.icon,
-    image: c.image,
-    ...base,
-    store: c.store,
-    target,
-    alert: target ? "activa" : "none",
-    stores: c.others.split(" y ").length + 1,
-    since: fd(ago(0)),
-    checked: 0,
-    series: makeSeries(base, seed),
-    ch: 0,
-  };
-}
-
-/** A search result in the demo. */
-export interface DemoHit {
-  key: string;
-  name: string;
-  image?: string;
-  icon: ProductIcon;
-  store: string;
-  price: number;
-  // Suggested list name (only for products you don't follow yet)
-  list?: string;
-  /** Id of the product if you already follow it (to link to its page) */
-  followedId?: string;
-  catalog?: CatalogItem;
-}
-
-// Lowercase and without accents, so "Cafetera Café" matches "cafetera cafe"
-const norm = (t: string) => t.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-
-/**
- * Searches the demo products. Names that start with the query come first,
- * then names with a word starting with it, then the rest.
- */
-export function searchDemo(q: string, followed: Product[], limit = 6): DemoHit[] {
-  const t = norm(q.trim());
-  if (t.length < 2) return [];
-  const words = t.split(/\s+/);
-  const matches = (name: string) => words.every((w) => norm(name).includes(w));
-  // Lower score = better match
-  const score = (name: string) => {
-    const n = norm(name);
-    if (n.startsWith(t)) return 0;
-    if (n.split(/\s+/).some((w) => w.startsWith(words[0]))) return 1;
-    return 2;
-  };
-
-  const hits: DemoHit[] = [
-    ...CATALOG.filter((c) => matches(c.name)).map((c) => ({
-      key: "c-" + c.slug,
-      name: c.name,
-      image: c.image,
-      icon: c.icon,
-      store: c.store,
-      price: c.price,
-      list: c.list,
-      followedId: followed.find((p) => p.id === c.slug)?.id,
-      catalog: c,
-    })),
-    ...followed
-      .filter((p) => matches(p.name) && !CATALOG.some((c) => c.slug === p.id))
-      .map((p) => ({ key: "p-" + p.id, name: p.name, image: p.image, icon: p.icon, store: p.store, price: p.cur, followedId: p.id })),
-  ];
-  // Best match first; on a tie, products you don't follow yet go first
-  const followedLast = (h: DemoHit) => (h.followedId ? 1 : 0);
-  return hits.sort((a, b) => score(a.name) - score(b.name) || followedLast(a) - followedLast(b)).slice(0, limit);
-}

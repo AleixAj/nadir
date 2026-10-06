@@ -1,5 +1,7 @@
 "use client";
 
+// Sign in and sign up form: Google, email and password, or the demo.
+// ?modo=registro shows the sign up version.
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -8,6 +10,7 @@ import { IconAlertCircle, IconEye, IconEyeOff, IconLoader2, IconMailCheck, IconP
 import { captchaHeaders, Turnstile } from "@/components/turnstile";
 import { btn, Logo } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { AUTH_INPUT } from "./auth-frame";
 
 /** Official four-colour Google "G", as required by their brand guidelines. */
 function GoogleG() {
@@ -55,9 +58,6 @@ function initialError(params: URLSearchParams) {
     return "El enlace de confirmación no es válido o ha caducado. Entra con tu email y contraseña y te enviaremos otro.";
   return "No se ha podido iniciar sesión con Google. Inténtalo de nuevo.";
 }
-
-const INPUT =
-  "h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--brand-soft)]";
 
 export function EntrarClient({ googleReady, turnstileKey }: { googleReady: boolean; turnstileKey: string | null }) {
   const params = useSearchParams();
@@ -249,7 +249,7 @@ export function EntrarClient({ googleReady, turnstileKey }: { googleReady: boole
                     aria-label="Nombre"
                     autoComplete="name"
                     maxLength={60}
-                    className={INPUT}
+                    className={AUTH_INPUT}
                   />
                 )}
                 <input
@@ -260,7 +260,7 @@ export function EntrarClient({ googleReady, turnstileKey }: { googleReady: boole
                   placeholder="Email"
                   aria-label="Email"
                   autoComplete="email"
-                  className={INPUT}
+                  className={AUTH_INPUT}
                 />
                 <div className="relative">
                   <input
@@ -273,7 +273,7 @@ export function EntrarClient({ googleReady, turnstileKey }: { googleReady: boole
                     placeholder={registro ? "Contraseña (mínimo 8 caracteres)" : "Contraseña"}
                     aria-label="Contraseña"
                     autoComplete={registro ? "new-password" : "current-password"}
-                    className={INPUT + " pr-11"}
+                    className={AUTH_INPUT + " pr-11"}
                   />
                   <button
                     type="button"

@@ -1,9 +1,11 @@
 "use client";
 
+// Settings page: profile, alert channels, check frequency, theme, and delete account or reset the demo
 import { useState } from "react";
 import { IconBrandTelegram, IconLogout, IconMail, IconMoon, IconRestore, IconSun, IconTrash } from "@tabler/icons-react";
 import { useTheme, type Theme } from "@/components/theme";
 import { Button, Card, cx, enter, Segmented, Switch } from "@/components/ui";
+import { PRODUCT_LIMIT } from "@/lib/account-types";
 import { authClient } from "@/lib/auth-client";
 import { useDemo, useIsAccount, type Freq } from "@/lib/store";
 import { AccountProfile, PasswordCard } from "./profile";
@@ -72,7 +74,7 @@ export default function AjustesPage() {
                 </label>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-b-[10px] border-t border-border bg-surface-2 px-4 py-3">
-                <span className="text-xs text-text-3">Plan gratuito · hasta 25 productos</span>
+                <span className="text-xs text-text-3">Plan gratuito · hasta {PRODUCT_LIMIT} productos</span>
                 <Button type="submit">Guardar cambios</Button>
               </div>
             </form>

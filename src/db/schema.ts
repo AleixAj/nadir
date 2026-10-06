@@ -135,7 +135,7 @@ export const pricePoint = pgTable(
   (t) => [index("price_point_product_idx").on(t.productId, t.checkedAt)],
 );
 
-// Alert created when a price drops below the target
+// Alert created when a price drops to the target or below
 export const alertEvent = pgTable(
   "alert_event",
   {
@@ -145,7 +145,7 @@ export const alertEvent = pgTable(
       .references(() => product.id, { onDelete: "cascade" }),
     priceCents: integer("price_cents").notNull(),
     targetCents: integer("target_cents").notNull(),
-    // Channels it was sent through (empty until emails are added)
+    // "email" if it was emailed, empty if it only shows in the app
     channels: text("channels").notNull().default(""),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

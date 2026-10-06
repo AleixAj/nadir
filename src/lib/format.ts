@@ -1,3 +1,5 @@
+// Helpers to show prices, percentages and dates in Spanish
+
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 

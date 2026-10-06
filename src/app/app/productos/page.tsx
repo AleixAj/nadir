@@ -1,5 +1,6 @@
 "use client";
 
+// "Mis productos": table on desktop and list on mobile, with list filter, search and sorting
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";

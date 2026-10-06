@@ -11,8 +11,19 @@ type ProductRecord = typeof product.$inferSelect;
 
 type CheckResult = { ok: boolean; priceCents?: number; error?: string };
 
+// Last saved price of a product, in cents (null if it has none yet)
+export async function lastPriceCents(productId: string): Promise<number | null> {
+  const [last] = await db
+    .select({ priceCents: pricePoint.priceCents })
+    .from(pricePoint)
+    .where(eq(pricePoint.productId, productId))
+    .orderBy(desc(pricePoint.checkedAt))
+    .limit(1);
+  return last?.priceCents ?? null;
+}
+
 // Checks a product's price: reads its page, saves the price and
-// creates an alert if it dropped below the target.
+// creates an alert if it dropped to the target or below.
 // It never throws: an unexpected error is saved on the product, so one bad page
 // can't stop the automatic check of everyone else's products.
 export async function checkProduct(p: ProductRecord): Promise<CheckResult> {
@@ -39,12 +50,7 @@ async function checkStore(p: ProductRecord): Promise<CheckResult> {
     return { ok: false, error: res.error };
   }
 
-  const [prev] = await db
-    .select({ priceCents: pricePoint.priceCents })
-    .from(pricePoint)
-    .where(eq(pricePoint.productId, p.id))
-    .orderBy(desc(pricePoint.checkedAt))
-    .limit(1);
+  const prevCents = await lastPriceCents(p.id);
 
   const priceCents = res.info.priceCents;
   await db.insert(pricePoint).values({ productId: p.id, priceCents, checkedAt: now });
@@ -53,7 +59,7 @@ async function checkStore(p: ProductRecord): Promise<CheckResult> {
     .set({ lastCheckedAt: now, lastError: null, image: p.image ?? res.info.image })
     .where(eq(product.id, p.id));
 
-  if (crossedTarget(prev?.priceCents ?? null, priceCents, p.targetCents, p.alertOn)) {
+  if (crossedTarget(prevCents, priceCents, p.targetCents, p.alertOn)) {
     await createAlert(p.id, priceCents, p.targetCents!);
   }
   return { ok: true, priceCents };
@@ -63,21 +69,16 @@ async function checkStore(p: ProductRecord): Promise<CheckResult> {
 // starting from its real catalog price.
 async function checkSimulated(p: ProductRecord) {
   const now = new Date();
-  const [prev] = await db
-    .select({ priceCents: pricePoint.priceCents })
-    .from(pricePoint)
-    .where(eq(pricePoint.productId, p.id))
-    .orderBy(desc(pricePoint.checkedAt))
-    .limit(1);
+  const lastCents = await lastPriceCents(p.id);
   const [base] = await db
     .select({ cents: min(catalogOffer.priceCents) })
     .from(catalogOffer)
     .where(eq(catalogOffer.productId, p.catalogId!));
   // Cheapest catalog price, or the last saved price if the catalog has none
-  const baseCents = base?.cents ?? prev?.priceCents;
+  const baseCents = base?.cents ?? lastCents;
   if (!baseCents) return { ok: false, error: "Producto sin precio en el catálogo." };
 
-  const prevCents = prev?.priceCents ?? baseCents;
+  const prevCents = lastCents ?? baseCents;
   const priceCents = nextSimulatedPrice(prevCents, baseCents, p.id, now);
   await db.insert(pricePoint).values({ productId: p.id, priceCents, checkedAt: now });
   await db.update(product).set({ lastCheckedAt: now, lastError: null }).where(eq(product.id, p.id));

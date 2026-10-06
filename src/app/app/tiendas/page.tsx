@@ -1,5 +1,6 @@
 "use client";
 
+// Stores page: which stores we check, when we last did it and which ones are failing
 import { useState } from "react";
 import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
 import { Button, Card, cx, enter } from "@/components/ui";

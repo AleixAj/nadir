@@ -1,4 +1,6 @@
 import "server-only";
+
+// Loads everything a logged-in user sees in the app, in the same shape as the demo data
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { account, alertEvent, catalogOffer, pricePoint, product, userList, userSettings } from "@/db/schema";

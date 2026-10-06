@@ -1,8 +1,9 @@
 "use client";
 
+// Profile and password cards of the settings page (only for real accounts)
 import { useRef, useState, type ReactNode } from "react";
 import { IconLoader2, IconPhoto, IconTrash } from "@tabler/icons-react";
-import { Avatar } from "@/components/app/shell";
+import { Avatar } from "@/components/app/avatar";
 import { Button, Card, enter } from "@/components/ui";
 import { PRODUCT_LIMIT, type AccountUser } from "@/lib/account-types";
 import { authClient } from "@/lib/auth-client";

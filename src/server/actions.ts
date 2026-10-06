@@ -1,50 +1,27 @@
 "use server";
 
-// Server Actions called directly from the UI.
+// Server Actions for products: add, check, alerts, settings and catalog search.
 // Every action checks the session, and that the product belongs to the user.
+// List and profile actions are in list-actions.ts and profile-actions.ts.
 import { and, asc, count, desc, eq, gt, isNull, like, lt, or, sql } from "drizzle-orm";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { db } from "@/db";
-import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userAvatar, userList, userSettings } from "@/db/schema";
-import { LIST_LIMIT, PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
-import { getAuth, getSession } from "@/lib/auth";
+import { alertEvent, catalogOffer, catalogProduct, pricePoint, product, userSettings } from "@/db/schema";
+import { PRODUCT_LIMIT, type AccountData, type ActionResult } from "@/lib/account-types";
 import { normalizeText } from "@/lib/catalog";
-import { cleanName } from "@/lib/names";
 import { simulatedHistory } from "./simulation";
 import { getAccountData } from "./account";
-import { checkProduct } from "./checks";
+import { checkProduct, lastPriceCents } from "./checks";
 import { createAlert } from "./alerts";
 import { fetchProduct } from "./fetch-product";
 import { allow, TOO_MANY } from "./limits";
+import { fresh, idSchema, listIdSchema, NO_SESSION, ownListId, ownProduct, requireUser, type SessionUser } from "./action-utils";
 
-type SessionUser = { id: string; name: string; email: string; image?: string | null };
-
-async function requireUser(): Promise<SessionUser | null> {
-  const session = await getSession();
-  return session?.user ?? null;
-}
-
-const NO_SESSION = { ok: false as const, error: "Tu sesión ha caducado. Vuelve a entrar." };
 const LIMIT_ERROR = `El plan gratuito permite seguir hasta ${PRODUCT_LIMIT} productos.`;
 
-// Sends back the updated account data
-async function fresh(user: SessionUser): Promise<ActionResult> {
-  return { ok: true, data: await getAccountData(user) };
-}
-
-// Only returns the product if it belongs to this user
-async function ownProduct(userId: string, id: string) {
-  const [row] = await db
-    .select()
-    .from(product)
-    .where(and(eq(product.id, id), eq(product.userId, userId)));
-  return row ?? null;
-}
-
-async function reachedLimit(userId: string) {
+async function countProducts(userId: string) {
   const [{ n }] = await db.select({ n: count() }).from(product).where(eq(product.userId, userId));
-  return n >= PRODUCT_LIMIT;
+  return n;
 }
 
 const toCents = (euros: number) => Math.round(euros * 100);
@@ -53,13 +30,8 @@ const toCents = (euros: number) => Math.round(euros * 100);
 // turned on, create the alert now instead of waiting for the next drop.
 // Skip it if we already sent one for this target and the price hasn't gone back up since.
 async function alertIfReached(productId: string, targetCents: number) {
-  const [last] = await db
-    .select({ priceCents: pricePoint.priceCents })
-    .from(pricePoint)
-    .where(eq(pricePoint.productId, productId))
-    .orderBy(desc(pricePoint.checkedAt))
-    .limit(1);
-  if (!last || last.priceCents > targetCents) return;
+  const lastCents = await lastPriceCents(productId);
+  if (lastCents == null || lastCents > targetCents) return;
   const [lastAlert] = await db
     .select({ createdAt: alertEvent.createdAt })
     .from(alertEvent)
@@ -81,17 +53,7 @@ async function alertIfReached(productId: string, targetCents: number) {
       .limit(1);
     if (!wentUp) return;
   }
-  await createAlert(productId, last.priceCents, targetCents);
-}
-
-// Returns the list id only if that list belongs to the user (otherwise no list)
-async function ownListId(userId: string, listId: string | null) {
-  if (!listId) return null;
-  const [row] = await db
-    .select({ id: userList.id })
-    .from(userList)
-    .where(and(eq(userList.id, listId), eq(userList.userId, userId)));
-  return row?.id ?? null;
+  await createAlert(productId, lastCents, targetCents);
 }
 
 // Saves the first prices of a new product. If that fails, the product is removed
@@ -110,25 +72,32 @@ async function savePricesOrUndo(productId: string, points: { priceCents: number;
 // Two requests at the same time could both pass the limit check, so we count
 // again after inserting and undo it if the user went over the limit.
 async function overLimitAfterInsert(userId: string, productId: string) {
-  const [{ n }] = await db.select({ n: count() }).from(product).where(eq(product.userId, userId));
-  if (n <= PRODUCT_LIMIT) return false;
+  if ((await countProducts(userId)) <= PRODUCT_LIMIT) return false;
   await db.delete(product).where(eq(product.id, productId));
   return true;
 }
 
-const SAVE_ERROR = "No hemos podido guardar el producto. Inténtalo de nuevo.";
+// Last steps of adding a product (from a link or from the catalog) once its row is inserted:
+// check the limit again, save its first prices and create the alert if the target is already reached
+async function finishAdding(
+  user: SessionUser,
+  inserted: { id: string }[],
+  points: { priceCents: number; checkedAt: Date }[],
+  targetCents: number | null,
+): Promise<ActionResult> {
+  if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
+  const productId = inserted[0].id;
+  if (await overLimitAfterInsert(user.id, productId)) return { ok: false, error: LIMIT_ERROR };
+  if (!(await savePricesOrUndo(productId, points))) {
+    return { ok: false, error: "No hemos podido guardar el producto. Inténtalo de nuevo." };
+  }
+  if (targetCents != null) await alertIfReached(productId, targetCents);
+  return fresh(user);
+}
 
-const idSchema = z.string().uuid();
-const listIdSchema = z.string().min(1).max(64).nullable();
 const priceSchema = z.number().positive().max(1_000_000).nullable();
 
 // Read
-
-export async function loadAccount(): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  return fresh(user);
-}
 
 // Reads the page to show a preview (nothing is saved yet)
 export async function previewProduct(url: string): Promise<
@@ -169,7 +138,7 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
   const { url, target, listId } = parsed.data;
 
-  if (await reachedLimit(user.id)) return { ok: false, error: LIMIT_ERROR };
+  if ((await countProducts(user.id)) >= PRODUCT_LIMIT) return { ok: false, error: LIMIT_ERROR };
 
   // Read the page again on the server: never trust data sent by the browser
   const res = await fetchProduct(url);
@@ -193,15 +162,7 @@ export async function addProduct(input: z.input<typeof addSchema>): Promise<Acti
     })
     .onConflictDoNothing()
     .returning({ id: product.id });
-  if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
-
-  const productId = inserted[0].id;
-  if (await overLimitAfterInsert(user.id, productId)) return { ok: false, error: LIMIT_ERROR };
-  if (!(await savePricesOrUndo(productId, [{ priceCents: res.info.priceCents, checkedAt: now }]))) {
-    return { ok: false, error: SAVE_ERROR };
-  }
-  if (targetCents != null) await alertIfReached(productId, targetCents);
-  return fresh(user);
+  return finishAdding(user, inserted, [{ priceCents: res.info.priceCents, checkedAt: now }], targetCents);
 }
 
 const alertSchema = z.object({ id: idSchema, target: z.number().positive().max(1_000_000), on: z.boolean() });
@@ -365,7 +326,7 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
   if (!parsed.success) return { ok: false, error: "Datos no válidos." };
   const { catalogId, target, listId } = parsed.data;
 
-  if (await reachedLimit(user.id)) return { ok: false, error: LIMIT_ERROR };
+  if ((await countProducts(user.id)) >= PRODUCT_LIMIT) return { ok: false, error: LIMIT_ERROR };
 
   const [item] = await db.select().from(catalogProduct).where(eq(catalogProduct.id, catalogId));
   if (!item) return { ok: false, error: "No encontramos este producto en el catálogo." };
@@ -397,153 +358,5 @@ export async function addFromCatalog(input: z.input<typeof catalogAddSchema>): P
     })
     .onConflictDoNothing()
     .returning({ id: product.id });
-  if (!inserted.length) return { ok: false, error: "Ya sigues este producto." };
-
-  const productId = inserted[0].id;
-  if (await overLimitAfterInsert(user.id, productId)) return { ok: false, error: LIMIT_ERROR };
-  const history = simulatedHistory(best.priceCents, catalogId, now);
-  if (!(await savePricesOrUndo(productId, history))) return { ok: false, error: SAVE_ERROR };
-  if (targetCents != null) await alertIfReached(productId, targetCents);
-  return fresh(user);
-}
-
-// Profile
-
-// Saves the change through Better Auth, so the session cookie gets the new name or photo too
-async function saveUser(user: SessionUser, changes: { name?: string; image?: string | null }): Promise<ActionResult> {
-  await getAuth().api.updateUser({ body: changes, headers: await headers() });
-  return fresh({ ...user, ...changes });
-}
-
-const nameSchema = z.string().trim().min(1).max(60);
-
-export async function updateName(name: string): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  const parsed = nameSchema.safeParse(name);
-  if (!parsed.success) return { ok: false, error: "Escribe un nombre de 1 a 60 caracteres." };
-  return saveUser(user, { name: cleanName(parsed.data) });
-}
-
-// The browser sends the photo already cropped to 256x256, so it's small.
-// We still check the size and that the bytes really are an image.
-const MAX_AVATAR_BYTES = 150 * 1024;
-const AVATAR_TYPES = ["image/webp", "image/jpeg", "image/png"];
-
-function looksLikeImage(bytes: Buffer, type: string) {
-  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (type === "image/png") return bytes.subarray(1, 4).toString("ascii") === "PNG";
-  // WebP files start with "RIFF", then the size, then "WEBP"
-  return bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
-}
-
-export async function uploadAvatar(dataUrl: string): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  if (!(await allow(`avatar:${user.id}`, 10, 600))) return { ok: false, error: TOO_MANY };
-
-  // Expected format: "data:image/webp;base64,AAAA..."
-  const match = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
-  const type = match?.[1] ?? "";
-  if (!match || !AVATAR_TYPES.includes(type)) return { ok: false, error: "La imagen tiene que ser JPG, PNG o WebP." };
-  const bytes = Buffer.from(match[2], "base64");
-  if (bytes.length > MAX_AVATAR_BYTES) return { ok: false, error: "La imagen es demasiado grande." };
-  if (!looksLikeImage(bytes, type)) return { ok: false, error: "El archivo no parece una imagen válida." };
-
-  const values = { userId: user.id, contentType: type, data: match[2], updatedAt: new Date() };
-  await db.insert(userAvatar).values(values).onConflictDoUpdate({ target: userAvatar.userId, set: values });
-  // "?v=" changes on every upload, so browsers don't show the old cached photo
-  return saveUser(user, { image: `/api/avatar/${user.id}?v=${Date.now()}` });
-}
-
-// Back to the default avatar (the user's initials)
-export async function removeAvatar(): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  await db.delete(userAvatar).where(eq(userAvatar.userId, user.id));
-  return saveUser(user, { image: null });
-}
-
-// Lists
-
-const listSchema = z.object({
-  name: z.string().trim().min(1).max(30),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-});
-
-const LIST_INPUT_ERROR = "Escribe un nombre de 1 a 30 caracteres y elige un color.";
-const LIST_NAME_TAKEN = "Ya tienes una lista con ese nombre.";
-
-// Postgres error 23505: a unique index rejected the row (e.g. two lists with the same name)
-function isUniqueViolation(err: unknown) {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e?.code === "23505" || e?.cause?.code === "23505";
-}
-
-// True if the user already has another list with this name (ignoring case)
-async function listNameTaken(userId: string, name: string, exceptId?: string) {
-  const rows = await db.select({ id: userList.id, name: userList.name }).from(userList).where(eq(userList.userId, userId));
-  return rows.some((r) => r.id !== exceptId && r.name.toLowerCase() === name.toLowerCase());
-}
-
-export async function createList(input: z.input<typeof listSchema>): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  if (!(await allow(`list:${user.id}`, 20, 60))) return { ok: false, error: TOO_MANY };
-  const parsed = listSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: LIST_INPUT_ERROR };
-
-  const [{ n }] = await db.select({ n: count() }).from(userList).where(eq(userList.userId, user.id));
-  if (n >= LIST_LIMIT) return { ok: false, error: `Puedes tener hasta ${LIST_LIMIT} listas.` };
-  if (await listNameTaken(user.id, parsed.data.name)) return { ok: false, error: LIST_NAME_TAKEN };
-
-  try {
-    await db.insert(userList).values({ userId: user.id, ...parsed.data });
-  } catch (err) {
-    if (isUniqueViolation(err)) return { ok: false, error: LIST_NAME_TAKEN };
-    throw err;
-  }
-  return fresh(user);
-}
-
-export async function updateList(input: z.input<typeof listSchema> & { id: string }): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  const parsed = listSchema.safeParse(input);
-  if (!parsed.success || !listIdSchema.safeParse(input.id).success) return { ok: false, error: LIST_INPUT_ERROR };
-  if (await listNameTaken(user.id, parsed.data.name, input.id)) return { ok: false, error: LIST_NAME_TAKEN };
-
-  try {
-    await db
-      .update(userList)
-      .set(parsed.data)
-      .where(and(eq(userList.id, input.id), eq(userList.userId, user.id)));
-  } catch (err) {
-    if (isUniqueViolation(err)) return { ok: false, error: LIST_NAME_TAKEN };
-    throw err;
-  }
-  return fresh(user);
-}
-
-// Deletes the list. Its products are kept, just without a list (the foreign key sets it to null)
-export async function deleteList(id: string): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  if (!listIdSchema.safeParse(id).success) return { ok: false, error: "Lista no válida." };
-  await db.delete(userList).where(and(eq(userList.id, id), eq(userList.userId, user.id)));
-  return fresh(user);
-}
-
-// Moves a product to another list (or to no list)
-export async function moveProduct(input: { id: string; listId: string | null }): Promise<ActionResult> {
-  const user = await requireUser();
-  if (!user) return NO_SESSION;
-  if (!idSchema.safeParse(input.id).success || !listIdSchema.safeParse(input.listId).success) {
-    return { ok: false, error: "Datos no válidos." };
-  }
-  if (!(await ownProduct(user.id, input.id))) return { ok: false, error: "No encontramos este producto." };
-
-  const listId = await ownListId(user.id, input.listId);
-  await db.update(product).set({ listId }).where(and(eq(product.id, input.id), eq(product.userId, user.id)));
-  return fresh(user);
+  return finishAdding(user, inserted, simulatedHistory(best.priceCents, catalogId, now), targetCents);
 }

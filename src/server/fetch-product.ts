@@ -1,4 +1,6 @@
 import "server-only";
+
+// Downloads a product page from a store (with SSRF checks) and reads its name, image and price
 import { checkPublicUrl, parseProductPage, storeName, type ProductInfo } from "@/lib/product-page";
 
 const MAX_BYTES = 3 * 1024 * 1024;

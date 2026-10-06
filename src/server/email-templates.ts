@@ -1,5 +1,6 @@
 // HTML for the emails Nadir sends. Emails need inline styles and simple tables,
 // because most email apps ignore <style> tags and modern CSS.
+import { eur } from "@/lib/format";
 
 // Read when the email is built: on Cloudflare the env vars only exist during a request
 const site = () => process.env.BETTER_AUTH_URL ?? "https://nadir.aleixaj.com";
@@ -105,12 +106,10 @@ export function resetPasswordTemplate(url: string) {
   };
 }
 
-const euros = (cents: number) => (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
-
 export function priceAlertTemplate(a: { productName: string; store: string; priceCents: number; targetCents: number; productId: string }) {
   const url = `${site()}/app/productos/${a.productId}`;
-  const price = euros(a.priceCents);
-  const target = euros(a.targetCents);
+  const price = eur(a.priceCents / 100);
+  const target = eur(a.targetCents / 100);
   return {
     subject: `${a.productName} ha bajado a ${price}`,
     html: layout(

@@ -1,6 +1,6 @@
 // Small calculations shared by several pages.
-import type { Product } from "./demo-data";
-import { r2 } from "./format";
+import type { AlertStatus, Product } from "./demo-data";
+import { eurS, pct1, r2 } from "./format";
 
 export type SortKey = "drop" | "near" | "price" | "name";
 
@@ -33,10 +33,14 @@ export function targetProgress(p: Product) {
 
 export const leftToTarget = (p: Product) => (p.target ? r2(p.cur - p.target) : 0);
 
-export type AlertBadge = "alcanzado" | "activa" | "pausada" | "none";
+// "Faltan 20 € · 5,3 %": how much the price still has to drop
+export function leftToTargetLabel(p: Product) {
+  const left = leftToTarget(p);
+  return `Faltan ${eurS(left)} · ${pct1((left / p.cur) * 100)} %`;
+}
 
 // Which alert pill to show for a product, given if its alert is switched on
-export function alertBadge(p: Product, on: boolean | undefined): AlertBadge {
+export function alertBadge(p: Product, on: boolean | undefined): AlertStatus {
   if (p.alert === "alcanzado" && on !== false) return "alcanzado";
   if (p.target && on) return "activa";
   if (p.target) return "pausada";

@@ -1,10 +1,11 @@
 import "server-only";
-import { makeSeries } from "@/lib/demo-data";
+import { makeSeries } from "@/lib/series";
 import { hash, seeded, simulateNextPrice } from "@/lib/catalog";
+import { r2 } from "@/lib/format";
+
+// Simulated prices for sample catalog products (they never hit a real store)
 
 const DAY = 24 * 60 * 60 * 1000;
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // Picks the chart shape from the product's random seed (0 to 1)
 function pickShape(r: number) {
@@ -21,8 +22,8 @@ export function simulatedHistory(currentCents: number, seed: string, now: Date, 
   const series = makeSeries(
     {
       cur,
-      prev7: round2(cur * (1 + (r - 0.35) * 0.08)),
-      min: round2(cur * (0.86 + r * 0.08)),
+      prev7: r2(cur * (1 + (r - 0.35) * 0.08)),
+      min: r2(cur * (0.86 + r * 0.08)),
       minAgo: 10 + Math.floor(r * 70),
       shape: pickShape(r),
     },

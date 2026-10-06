@@ -1,5 +1,7 @@
 "use client";
 
+// Small pieces used all over the app: logo, buttons, switch, segmented control,
+// product photo, price change badge, sparkline, skeletons...
 import { animate, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
