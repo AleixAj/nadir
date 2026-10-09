@@ -64,13 +64,13 @@ El nombre viene de *nadir*, el punto más bajo de una curva. Es un proyecto de p
 
 - **Panel** con las bajadas de la semana, alertas activas, últimas bajadas y productos cerca de su precio objetivo.
 - **Buscar y añadir productos por nombre**, con sugerencias y fotos mientras escribes y navegación con el teclado. También se puede pegar el enlace de una tienda.
-- **Mis productos**: tabla con minigráfica de 7 días, mínimo histórico, mejor tienda y estado de la alerta. Filtros por lista, búsqueda y cuatro formas de ordenar.
+- **Mis productos**: tabla con minigráfica de 7 días, mínimo histórico, mejor tienda y estado de la alerta. Filtros por lista, búsqueda, cuatro formas de ordenar y botón para dejar de seguir un producto desde la propia lista.
 - **Listas propias**: crea, renombra, cambia el color o borra tus listas y mueve cada producto a la que quieras.
 - **Ficha de producto**, la pantalla principal:
   - gráfica del histórico dibujada en SVG, con periodos de 7 días, 1 mes, 3 meses y 1 año, tooltip, línea del precio objetivo y el punto *nadir* marcado;
   - comparativa de tiendas ordenada por precio final, con la opción «Mejor» destacada;
   - alerta de precio con interruptor, atajos (mínimo histórico, −5 %, −10 %) y canales de aviso;
-  - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir».
+  - resumen del periodo, «Revisar el precio ahora» y «Dejar de seguir» (con una ventana de confirmación antes de borrar).
 - **Alertas** activas con su progreso hacia el objetivo, e historial de avisos generados. Cuando un precio baja del objetivo, te llega también **por email**.
 - **Tiendas**: todas las tiendas donde se venden tus productos, cuántos vende cada una, última revisión y reintento si falla.
 - **Ajustes**: perfil (nombre y foto, que puedes subir desde tu ordenador), cambio de contraseña, canales, frecuencia de revisión, tema, cerrar sesión y eliminar la cuenta con todos sus datos.
@@ -205,7 +205,7 @@ src/
 │   ├── api/cron/check/       # Revisión automática de precios
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # UI base, shell de la app, modales de añadir producto y de listas, gráfica
+├── components/               # UI base, shell de la app, modales (añadir producto, listas, confirmación), gráfica
 ├── db/                       # Esquema y conexión (Drizzle + Neon)
 ├── server/                   # Server Actions, carga de la cuenta, revisiones, simulación, lector de páginas
 └── lib/                      # Lógica pura y tests (gráfica, históricos, catálogo, formato…)

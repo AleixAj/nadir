@@ -34,7 +34,7 @@ export function useDialogFocus(open: boolean, ref: React.RefObject<HTMLElement |
     const remember = () => {
       const el = document.activeElement as HTMLElement | null;
       // Ignore focus inside a dialog (an autoFocus input gets it before this effect is cleaned up)
-      if (el && !el.closest("[role=dialog]")) opener.current = el;
+      if (el && !el.closest("[role=dialog], [role=alertdialog]")) opener.current = el;
     };
     remember();
     document.addEventListener("focusin", remember);

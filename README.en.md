@@ -64,13 +64,13 @@ The name comes from *nadir*, the lowest point of a curve. It is a portfolio proj
 
 - **Dashboard** with this week's drops, active alerts, latest price drops and products close to their target price.
 - **Search and add products by name**, with suggestions and photos as you type and keyboard navigation. You can also paste a store link.
-- **My products**: a table with a 7-day sparkline, all-time low, best store and alert status. List filters, search and four sort orders.
+- **My products**: a table with a 7-day sparkline, all-time low, best store and alert status. List filters, search, four sort orders and a button to stop tracking a product right from the list.
 - **Your own lists**: create, rename, recolour or delete lists and move each product to the one you want.
 - **Product page**, the main screen:
   - price history chart drawn in SVG, with 7-day, 1-month, 3-month and 1-year periods, a tooltip, the target price line and the *nadir* point highlighted;
   - store comparison sorted by final price, with the best option highlighted;
   - price alert with a toggle, shortcuts (all-time low, −5 %, −10 %) and notification channels;
-  - period summary, “Check price now” and “Stop tracking”.
+  - period summary, “Check price now” and “Stop tracking” (with a confirmation dialog before deleting).
 - **Alerts**: active alerts with progress towards the target, plus a history of generated notifications. When a price drops below the target you also get an **email**.
 - **Stores**: every store that sells your products, how many each one sells, last check and retry on failure.
 - **Settings**: profile (name and a photo you can upload from your computer), password change, channels, check frequency, theme, sign out and delete the account with all its data.
@@ -205,7 +205,7 @@ src/
 │   ├── api/cron/check/       # Automatic price checks
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # Base UI, app shell, add-product and list dialogs, chart
+├── components/               # Base UI, app shell, dialogs (add product, lists, confirmation), chart
 ├── db/                       # Schema and connection (Drizzle + Neon)
 ├── server/                   # Server Actions, account loader, checks, simulation, page reader
 └── lib/                      # Pure logic and tests (chart, history, catalog, formatting…)

@@ -63,13 +63,15 @@ export function Logo({ size = 22, text = 16 }: { size?: number; text?: number })
 
 // Buttons
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary: "btn-glow bg-brand-solid text-on-brand hover:bg-brand-solid-hover border border-transparent",
   secondary: "bg-surface text-text border border-border-strong shadow-sm hover:border-brand-soft-border hover:bg-surface-2",
   ghost: "bg-transparent text-text border border-transparent hover:bg-surface-3",
+  // For actions that delete something
+  danger: "bg-[#dc2626] text-white border border-transparent hover:bg-[#b91c1c]",
 };
 const sizes: Record<Size, string> = {
   sm: "h-8 px-3 text-[13px] rounded-md gap-1.5",

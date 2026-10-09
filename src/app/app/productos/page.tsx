@@ -13,8 +13,10 @@ import {
   IconPlus,
   IconRefresh,
   IconSearch,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useLoading } from "@/components/app/shell";
+import { UnfollowDialog } from "@/components/app/unfollow-dialog";
 import { SelectMenu } from "@/components/select-menu";
 import { Button, ChangeBadge, changeColor, cx, EmptyMark, enter, ProductThumb, Segmented, Skeleton, Sparkline } from "@/components/ui";
 import { minDate, type Product } from "@/lib/demo-data";
@@ -23,7 +25,7 @@ import { alertBadge, sortProducts, type SortKey } from "@/lib/insights";
 import { listName, NO_LIST, useDemo, useProducts, type ListFilter } from "@/lib/store";
 
 // Shared column widths for the desktop table header, rows and skeletons
-const COLS = "grid-cols-[minmax(240px,1fr)_108px_150px_124px_112px_164px]";
+const COLS = "grid-cols-[minmax(240px,1fr)_108px_150px_124px_112px_164px_32px]";
 const SORT_OPTIONS = [
   { value: "drop", label: "Mayor bajada (7 d)" },
   { value: "near", label: "Más cerca del objetivo" },
@@ -54,6 +56,8 @@ export default function ProductosPage() {
   const openListEditor = useDemo((s) => s.openListEditor);
   const errored = loadState === "error" && !loading;
   const empty = products.length === 0;
+  // Product waiting for the "unfollow?" confirmation
+  const [toUnfollow, setToUnfollow] = useState<Product | null>(null);
 
   // Filter by list and search text, then sort
   const query = search.trim().toLowerCase();
@@ -149,7 +153,7 @@ export default function ProductosPage() {
       {/* Desktop: table */}
       {!errored && !empty && (
         <div {...enter(2, "hidden overflow-x-auto rounded-[10px] border border-border bg-surface shadow-sm desk:block")}>
-          <div role="table" aria-label="Mis productos" className="min-w-[920px]">
+          <div role="table" aria-label="Mis productos" className="min-w-[960px]">
             <div
               role="row"
               className={cx("grid h-9 items-center gap-4 border-b border-border bg-surface-2 px-4 text-xs font-medium text-text-3", COLS)}
@@ -162,9 +166,12 @@ export default function ProductosPage() {
               <span role="columnheader">Mínimo histórico</span>
               <span role="columnheader">Mejor tienda</span>
               <span role="columnheader">Alerta</span>
+              <span role="columnheader">
+                <span className="sr-only">Acciones</span>
+              </span>
             </div>
             {loading && [1, 2, 3, 4, 5, 6].map((k) => <RowSkeleton key={k} />)}
-            {ready && rows.map((p, i) => <ProductRow key={p.id} p={p} i={i} />)}
+            {ready && rows.map((p, i) => <ProductRow key={p.id} p={p} i={i} onUnfollow={() => setToUnfollow(p)} />)}
           </div>
         </div>
       )}
@@ -184,24 +191,26 @@ export default function ProductosPage() {
             ))}
           {ready &&
             rows.map((p, i) => (
-              <Link
-                key={p.id}
-                href={`/app/productos/${p.id}`}
-                className={cx("row-accent flex min-h-16 items-center gap-3 px-3.5 py-3 text-text active:bg-surface-2", i > 0 && "border-t border-border")}
-              >
-                <ProductThumb icon={p.icon} image={p.image} size={52} radius={10} />
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="truncate text-sm font-medium">{p.name}</span>
-                  <span className="flex items-center gap-2 text-xs text-text-3">
-                    <Sparkline values={p.series.slice(-8)} color={changeColor(p.ch)} w={44} h={16} strokeWidth={2} />
-                    <span>Mín. {eur(p.min)}</span>
+              <div key={p.id} className={cx("flex items-center", i > 0 && "border-t border-border")}>
+                <Link
+                  href={`/app/productos/${p.id}`}
+                  className="row-accent flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-3.5 text-text active:bg-surface-2"
+                >
+                  <ProductThumb icon={p.icon} image={p.image} size={52} radius={10} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-sm font-medium">{p.name}</span>
+                    <span className="flex items-center gap-2 text-xs text-text-3">
+                      <Sparkline values={p.series.slice(-8)} color={changeColor(p.ch)} w={44} h={16} strokeWidth={2} />
+                      <span>Mín. {eur(p.min)}</span>
+                    </span>
                   </span>
-                </span>
-                <span className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">{eur(p.cur)}</span>
-                  <ChangeBadge ch={p.ch} size="sm" />
-                </span>
-              </Link>
+                  <span className="flex flex-col items-end gap-1">
+                    <span className="text-sm font-semibold">{eur(p.cur)}</span>
+                    <ChangeBadge ch={p.ch} size="sm" />
+                  </span>
+                </Link>
+                <UnfollowButton p={p} onClick={() => setToUnfollow(p)} className="mx-1.5 size-10" />
+              </div>
             ))}
         </div>
       )}
@@ -211,12 +220,14 @@ export default function ProductosPage() {
           {search.trim() ? `No hay productos que coincidan con «${search}».` : "Esta lista todavía no tiene productos."}
         </p>
       )}
+
+      <UnfollowDialog product={toUnfollow} onClose={() => setToUnfollow(null)} />
     </>
   );
 }
 
 /** Clickable table row (also works with Enter / Space). */
-function ProductRow({ p, i }: { p: Product; i: number }) {
+function ProductRow({ p, i, onUnfollow }: { p: Product; i: number; onUnfollow: () => void }) {
   const lists = useDemo((s) => s.lists);
   const router = useRouter();
   const on = useDemo((s) => s.alerts[p.id]);
@@ -234,7 +245,7 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
           open();
         }
       }}
-      className={cx("row-accent grid cursor-pointer items-center gap-4 border-t border-border px-4 py-2.5 transition-colors hover:bg-surface-2", COLS)}
+      className={cx("group row-accent grid cursor-pointer items-center gap-4 border-t border-border px-4 py-2.5 transition-colors hover:bg-surface-2", COLS)}
       style={{ animation: `enter 320ms var(--ease-out-strong) ${delay}ms both` }}
     >
       <div role="cell" className="flex min-w-0 items-center gap-3">
@@ -263,7 +274,38 @@ function ProductRow({ p, i }: { p: Product; i: number }) {
       <div role="cell">
         <AlertPill p={p} on={on} />
       </div>
+      <div role="cell">
+        {/* Only shown on hover or keyboard focus, to keep the table clean */}
+        <UnfollowButton
+          p={p}
+          onClick={onUnfollow}
+          className="size-8 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
+        />
+      </div>
     </div>
+  );
+}
+
+// Trash button that asks to unfollow the product. It stops the click and the keys
+// so the row behind doesn't open the product page.
+function UnfollowButton({ p, onClick, className }: { p: Product; onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Dejar de seguir ${p.name}`}
+      title="Dejar de seguir"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={cx(
+        "press grid shrink-0 cursor-pointer place-items-center rounded-md text-text-3 transition-[color,background-color,opacity] hover:bg-up-soft hover:text-up",
+        className,
+      )}
+    >
+      <IconTrash size={16} aria-hidden />
+    </button>
   );
 }
 
@@ -299,6 +341,7 @@ function RowSkeleton() {
       <Skeleton className="h-3 w-20" />
       <Skeleton className="h-3 w-[70px]" />
       <Skeleton className="h-5 w-[110px]" />
+      <span />
     </div>
   );
 }

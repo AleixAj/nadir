@@ -20,6 +20,7 @@ import {
 } from "@tabler/icons-react";
 import { PriceChart } from "@/components/app/price-chart";
 import { SelectMenu } from "@/components/select-menu";
+import { UnfollowDialog } from "@/components/app/unfollow-dialog";
 import { useLoading } from "@/components/app/shell";
 import { Button, Card, ChangeBadge, CountUp, cx, enter, ProductThumb, Segmented, Skeleton, Switch } from "@/components/ui";
 import { RANGES, type RangeKey, type Chart } from "@/lib/chart";
@@ -160,7 +161,8 @@ function Ficha({ p, loading }: { p: Product; loading: boolean }) {
 
   return (
     <>
-      <div {...enter(0, "flex flex-wrap items-start gap-4")}>
+      {/* relative z-[5]: the "..." menu opens above the cards below, but under the sticky top bar (z-10) */}
+      <div {...enter(0, "relative z-[5] flex flex-wrap items-start gap-4")}>
         <ProductThumb icon={p.icon} image={p.image} size={88} radius={12} />
         <div className="flex min-w-[220px] flex-1 flex-col gap-2">
           <h1 className="m-0 text-[22px] leading-[1.2] font-semibold tracking-[-0.02em] text-balance">{p.name}</h1>
@@ -543,11 +545,12 @@ function StoreLink({
 function ProductMenu({ p }: { p: Product }) {
   const router = useRouter();
   const checkNow = useDemo((s) => s.checkNow);
-  const deleteProduct = useDemo((s) => s.deleteProduct);
   const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState<"" | "check" | "delete">("");
+  const [checking, setChecking] = useState(false);
+  // Opens the "are you sure?" dialog before unfollowing
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Close on outside click or Escape
   useEffect(() => {
@@ -566,24 +569,17 @@ function ProductMenu({ p }: { p: Product }) {
     };
   }, [open]);
 
-  // Delete needs two clicks: the first one asks for confirmation
-  let deleteLabel = "Dejar de seguir";
-  if (busy === "delete") deleteLabel = "Borrando…";
-  else if (confirm) deleteLabel = "Pulsa otra vez para confirmar";
-
   const item = "flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-surface-2 disabled:cursor-wait disabled:opacity-60";
 
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         aria-label="Más opciones"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => {
-          setOpen(!open);
-          setConfirm(false);
-        }}
+        onClick={() => setOpen(!open)}
         className="press grid size-8 cursor-pointer place-items-center rounded-md border border-border-strong bg-surface text-text-2 shadow-sm hover:bg-surface-2"
       >
         <IconDots size={16} aria-hidden />
@@ -602,40 +598,37 @@ function ProductMenu({ p }: { p: Product }) {
             <button
               type="button"
               role="menuitem"
-              disabled={!!busy}
+              disabled={checking}
               className={item}
               onClick={async () => {
-                setBusy("check");
+                setChecking(true);
                 await checkNow(p.id);
-                setBusy("");
+                setChecking(false);
                 setOpen(false);
               }}
             >
-              <IconRefresh size={16} className={cx("text-text-2", busy === "check" && "animate-spin")} aria-hidden />
-              {busy === "check" ? "Revisando…" : "Revisar el precio ahora"}
+              <IconRefresh size={16} className={cx("text-text-2", checking && "animate-spin")} aria-hidden />
+              {checking ? "Revisando…" : "Revisar el precio ahora"}
             </button>
             <button
               type="button"
               role="menuitem"
-              disabled={!!busy}
+              disabled={checking}
               className={cx(item, "text-up")}
-              onClick={async () => {
-                if (!confirm) {
-                  setConfirm(true);
-                  return;
-                }
-                setBusy("delete");
-                const ok = await deleteProduct(p.id);
-                setBusy("");
-                if (ok) router.push("/app/productos");
+              onClick={() => {
+                setOpen(false);
+                // The menu item disappears, so give the focus back to "..." (the dialog returns it there)
+                buttonRef.current?.focus();
+                setConfirmOpen(true);
               }}
             >
               <IconTrash size={16} aria-hidden />
-              {deleteLabel}
+              Dejar de seguir
             </button>
           </motion.div>
         )}
       </AnimatePresence>
+      <UnfollowDialog product={confirmOpen ? p : null} onClose={() => setConfirmOpen(false)} onDone={() => router.push("/app/productos")} />
     </div>
   );
 }

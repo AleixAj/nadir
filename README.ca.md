@@ -64,13 +64,13 @@ El nom ve de *nadir*, el punt més baix d'una corba. És un projecte de portfoli
 
 - **Tauler** amb les baixades de la setmana, les alertes actives, les últimes baixades i els productes a prop del preu objectiu.
 - **Cercar i afegir productes pel nom**, amb suggeriments i fotos mentre escrius i navegació amb el teclat. També es pot enganxar l'enllaç d'una botiga.
-- **Els meus productes**: taula amb minigràfica de 7 dies, mínim històric, millor botiga i estat de l'alerta. Filtres per llista, cerca i quatre maneres d'ordenar.
+- **Els meus productes**: taula amb minigràfica de 7 dies, mínim històric, millor botiga i estat de l'alerta. Filtres per llista, cerca, quatre maneres d'ordenar i botó per deixar de seguir un producte des de la mateixa llista.
 - **Llistes pròpies**: crea, canvia el nom o el color, o esborra les teves llistes i mou cada producte a la que vulguis.
 - **Fitxa de producte**, la pantalla principal:
   - gràfica de l'historial dibuixada en SVG, amb períodes de 7 dies, 1 mes, 3 mesos i 1 any, tooltip, línia del preu objectiu i el punt *nadir* marcat;
   - comparativa de botigues ordenada pel preu final, amb l'opció «Millor» destacada;
   - alerta de preu amb interruptor, dreceres (mínim històric, −5 %, −10 %) i canals d'avís;
-  - resum del període, «Revisar el preu ara» i «Deixar de seguir».
+  - resum del període, «Revisar el preu ara» i «Deixar de seguir» (amb una finestra de confirmació abans d'esborrar).
 - **Alertes** actives amb el progrés cap a l'objectiu, i historial d'avisos generats. Quan un preu baixa de l'objectiu, també t'arriba **per correu**.
 - **Botigues**: totes les botigues on es venen els teus productes, quants en ven cadascuna, última revisió i reintent si falla.
 - **Configuració**: perfil (nom i foto, que pots pujar des del teu ordinador), canvi de contrasenya, canals, freqüència de revisió, tema, tancar la sessió i eliminar el compte amb totes les seves dades.
@@ -205,7 +205,7 @@ src/
 │   ├── api/cron/check/       # Revisió automàtica de preus
 │   ├── privacidad/, condiciones/, email/alerta/
 │   └── manifest.ts, robots.ts, sitemap.ts
-├── components/               # UI base, shell de l'aplicació, diàlegs d'afegir producte i de llistes, gràfica
+├── components/               # UI base, shell de l'aplicació, diàlegs (afegir producte, llistes, confirmació), gràfica
 ├── db/                       # Esquema i connexió (Drizzle + Neon)
 ├── server/                   # Server Actions, càrrega del compte, revisions, simulació, lector de pàgines
 └── lib/                      # Lògica pura i tests (gràfica, historials, catàleg, format…)
